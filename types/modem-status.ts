@@ -32,6 +32,8 @@ export interface ModemStatus {
   traffic: TrafficStatus;
   /** Internet connectivity and latency (from ping daemon) */
   connectivity: ConnectivityStatus;
+  /** Per-antenna signal values (from AT+QRSRP/QRSRQ/QSINR, Tier 1.5) */
+  signal_per_antenna: SignalPerAntenna;
 }
 
 // --- Enums & Unions ----------------------------------------------------------
@@ -262,6 +264,37 @@ export interface ConnectivityStatus {
   history_size: number;
   /** Whether watchcat recovery is currently active */
   during_recovery: boolean;
+}
+
+// --- Per-Antenna Signal Data -------------------------------------------------
+
+/**
+ * Per-antenna signal values from AT+QRSRP, AT+QRSRQ, AT+QSINR.
+ * Each array has 4 elements [ant0, ant1, ant2, ant3].
+ * null entries indicate inactive/unavailable antenna ports (sentinel -32768).
+ */
+export interface SignalPerAntenna {
+  lte_rsrp: (number | null)[];
+  lte_rsrq: (number | null)[];
+  lte_sinr: (number | null)[];
+  nr_rsrp: (number | null)[];
+  nr_rsrq: (number | null)[];
+  nr_sinr: (number | null)[];
+}
+
+/**
+ * A single entry from the signal history NDJSON file.
+ * One line is appended every 10 seconds (Tier 1.5 interval).
+ */
+export interface SignalHistoryEntry {
+  /** Unix epoch (seconds) */
+  ts: number;
+  lte_rsrp: (number | null)[];
+  lte_rsrq: (number | null)[];
+  lte_sinr: (number | null)[];
+  nr_rsrp: (number | null)[];
+  nr_rsrq: (number | null)[];
+  nr_sinr: (number | null)[];
 }
 
 // --- Connectivity Utility Functions ------------------------------------------

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import {
@@ -27,53 +27,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useSignalHistory } from "@/hooks/use-signal-history";
+import type { SignalChartPoint } from "@/hooks/use-signal-history";
 
 export const description = "Signal history chart for RSRP, RSRQ, and SINR";
-
-// Generate 5 data points (1 per minute for 5 minutes)
-const generateSignalData = () => {
-  const data = [];
-  const now = new Date();
-
-  for (let i = 9; i >= 0; i--) {
-    const time = new Date(now.getTime() - i * 60 * 1000);
-    const timeStr = time.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-
-    // RSRP: typically -140 to -44 dBm (closer to -44 is better)
-    // 4G tends to be slightly weaker than 5G in this simulation
-    const rsrp4G =
-      -95 + Math.floor(Math.random() * 30) - 15 + Math.sin(i / 10) * 5;
-    const rsrp5G =
-      -85 + Math.floor(Math.random() * 25) - 12 + Math.sin(i / 10) * 5;
-
-    // RSRQ: typically -20 to -3 dB (closer to -3 is better)
-    const rsrq4G =
-      -12 + Math.floor(Math.random() * 6) - 3 + Math.sin(i / 8) * 2;
-    const rsrq5G =
-      -10 + Math.floor(Math.random() * 5) - 2 + Math.sin(i / 8) * 2;
-
-    // SINR: typically -20 to 30 dB (higher is better)
-    const sinr4G =
-      8 + Math.floor(Math.random() * 12) - 6 + Math.sin(i / 12) * 3;
-    const sinr5G =
-      12 + Math.floor(Math.random() * 14) - 7 + Math.sin(i / 12) * 3;
-
-    data.push({
-      time: timeStr,
-      rsrp4G: Math.round(rsrp4G),
-      rsrp5G: Math.round(rsrp5G),
-      rsrq4G: parseFloat(rsrq4G.toFixed(1)),
-      rsrq5G: parseFloat(rsrq5G.toFixed(1)),
-      sinr4G: parseFloat(sinr4G.toFixed(1)),
-      sinr5G: parseFloat(sinr5G.toFixed(1)),
-    });
-  }
-  return data;
-};
 
 const chartConfig = {
   rsrp4G: {
@@ -104,9 +61,7 @@ const chartConfig = {
 
 export function SignalHistoryComponent() {
   const [signalType, setSignalType] = useState("rsrp");
-
-  // Generate data only on client side to avoid hydration mismatch
-  const chartData = useMemo(() => generateSignalData(), []);
+  const { chartData, isLoading } = useSignalHistory();
 
   const getDataKeys = () => {
     switch (signalType) {
@@ -125,14 +80,22 @@ export function SignalHistoryComponent() {
 
   // Calculate the min value for the current signal type to use as baseline
   const getBaseValue = () => {
+    if (chartData.length === 0) return 0;
     const values = chartData.flatMap((d) => [
-      d[key4G as keyof typeof d] as number,
-      d[key5G as keyof typeof d] as number,
-    ]);
+      d[key4G as keyof SignalChartPoint] as number | null,
+      d[key5G as keyof SignalChartPoint] as number | null,
+    ]).filter((v): v is number => v !== null);
+    if (values.length === 0) return 0;
     return Math.min(...values);
   };
 
   const baseValue = getBaseValue();
+
+  // Time window description based on actual data span
+  const getTimeSpan = () => {
+    if (chartData.length < 2) return "signal strength";
+    return "signal strength over recent history";
+  };
 
   return (
     <Card className="@container/card">
@@ -175,85 +138,96 @@ export function SignalHistoryComponent() {
         </CardAction>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
-        >
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="fill4G" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor={`var(--color-${key4G})`}
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor={`var(--color-${key4G})`}
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-              <linearGradient id="fill5G" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor={`var(--color-${key5G})`}
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor={`var(--color-${key5G})`}
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="time"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tickFormatter={(value) => `${value}`}
-              domain={["dataMin - 5", "dataMax + 5"]}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(value) => `${value}`}
-                  indicator="dot"
-                />
-              }
-            />
-            <Area
-              dataKey={key4G}
-              type="monotone"
-              fill="url(#fill4G)"
-              stroke={`var(--color-${key4G})`}
-              baseValue={baseValue}
-            />
-            <Area
-              dataKey={key5G}
-              type="monotone"
-              fill="url(#fill5G)"
-              stroke={`var(--color-${key5G})`}
-              baseValue={baseValue}
-            />
-            <ChartLegend content={<ChartLegendContent />} />
-          </AreaChart>
-        </ChartContainer>
+        {isLoading ? (
+          <div className="flex h-[250px] items-center justify-center text-muted-foreground text-sm">
+            Loading signal history…
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="flex h-[250px] items-center justify-center text-muted-foreground text-sm">
+            No signal history available yet. Data will appear after ~10 seconds.
+          </div>
+        ) : (
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-[250px] w-full"
+          >
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="fill4G" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor={`var(--color-${key4G})`}
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={`var(--color-${key4G})`}
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+                <linearGradient id="fill5G" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor={`var(--color-${key5G})`}
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={`var(--color-${key5G})`}
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="time"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tickFormatter={(value) => `${value}`}
+                domain={["dataMin - 5", "dataMax + 5"]}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(value) => `${value}`}
+                    indicator="dot"
+                  />
+                }
+              />
+              <Area
+                dataKey={key4G}
+                type="monotone"
+                fill="url(#fill4G)"
+                stroke={`var(--color-${key4G})`}
+                baseValue={baseValue}
+                connectNulls={false}
+              />
+              <Area
+                dataKey={key5G}
+                type="monotone"
+                fill="url(#fill5G)"
+                stroke={`var(--color-${key5G})`}
+                baseValue={baseValue}
+                connectNulls={false}
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+            </AreaChart>
+          </ChartContainer>
+        )}
       </CardContent>
       <CardFooter>
         <div className="flex w-full items-start gap-2 text-sm">
           <div className="grid gap-2">
             <div className="flex items-center gap-2 leading-none font-medium">
-              This chart shows the {signalType.toUpperCase()} signal strength
-              over the past 10 minutes.
+              This chart shows the {signalType.toUpperCase()} {getTimeSpan()}.
             </div>
             <div className="text-muted-foreground flex items-center gap-2 leading-none">
               Values may fluctuate due to environmental factors and network
