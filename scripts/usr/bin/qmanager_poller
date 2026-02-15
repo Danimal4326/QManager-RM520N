@@ -405,7 +405,7 @@ collect_boot_data() {
     # Enable Timing Advance reporting (one-time, persists until modem reboot)
     qcmd_exec 'AT+QNWCFG="lte_time_advance",1' >/dev/null 2>&1
     sleep "$SIP_DELAY"
-    qcmd_exec 'AT+QNWCFG="nr_time_advance",1' >/dev/null 2>&1
+    qcmd_exec 'AT+QNWCFG="nr5g_time_advance",1' >/dev/null 2>&1
     sleep "$SIP_DELAY"
 
     log_info "Boot data: FW=$boot_firmware BUILD=$boot_build_date MFG=$boot_manufacturer"
@@ -558,7 +558,7 @@ poll_tier2() {
     sleep "$SIP_DELAY"
 
     # Timing Advance — NR (query only, will ERROR when no 5G active)
-    result=$(qcmd_exec 'AT+QNWCFG="nr_time_advance"')
+    result=$(qcmd_exec 'AT+QNWCFG="nr5g_time_advance"')
     if [ $? -eq 0 ]; then
         parse_time_advance "$result"
     else

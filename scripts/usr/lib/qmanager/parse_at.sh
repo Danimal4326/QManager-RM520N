@@ -135,7 +135,7 @@ parse_serving_cell() {
         if [ -n "$nr_line" ]; then
             nr_state="connected"
             local csv
-            csv=$(printf '%s' "$nr_line" | sed 's/+QENG: //g' | tr -d '"' | tr -d ' ')
+            csv=$(printf '%s' "$nr_line" | sed 's/+QENG: //g' | tr -d '"' | tr -d ' ' | tr -d '\r')
 
             # NR5G-NSA,MCC,MNC,PCID,RSRP,SINR,RSRQ,ARFCN,band,NR_DL_bw,scs
             # 1        2   3   4    5    6    7    8     9    10        11
@@ -406,26 +406,27 @@ parse_time_advance() {
     # LTE TA: +QNWCFG: "lte_time_advance",<enabled>,<ta>
     # The enable command echoes back as +QNWCFG: "lte_time_advance",1
     # The query echoes back as +QNWCFG: "lte_time_advance",1,<ta>
-    # We want the line with 3 fields (the one with the actual TA value)
+    # We want the line with 3+ fields (the one with the actual TA value)
     local lte_ta_line
     lte_ta_line=$(printf '%s\n' "$raw" | grep '"lte_time_advance"' | awk -F',' 'NF>=3' | head -1)
 
     if [ -n "$lte_ta_line" ]; then
         local ta_val
-        ta_val=$(printf '%s' "$lte_ta_line" | tr -d '"' | tr -d ' ' | tr -d '\r' | awk -F',' '{print $NF}')
+        ta_val=$(printf '%s' "$lte_ta_line" | tr -d '"' | tr -d ' ' | tr -d '\r' | awk -F',' '{print $3}')
         case "$ta_val" in
             *[!0-9-]*|'') lte_ta="" ;;
             *) lte_ta="$ta_val" ;;
         esac
     fi
 
-    # NR TA: +QNWCFG: "nr_time_advance",<enabled>,<nta>
+    # NR TA: +QNWCFG: "nr5g_time_advance",<enabled>,<nta>,<extra>
+    # Response has 4 fields — TA value is field 3, NOT last field
     local nr_ta_line
-    nr_ta_line=$(printf '%s\n' "$raw" | grep '"nr_time_advance"' | awk -F',' 'NF>=3' | head -1)
+    nr_ta_line=$(printf '%s\n' "$raw" | grep '"nr5g_time_advance"' | awk -F',' 'NF>=3' | head -1)
 
     if [ -n "$nr_ta_line" ]; then
         local nta_val
-        nta_val=$(printf '%s' "$nr_ta_line" | tr -d '"' | tr -d ' ' | tr -d '\r' | awk -F',' '{print $NF}')
+        nta_val=$(printf '%s' "$nr_ta_line" | tr -d '"' | tr -d ' ' | tr -d '\r' | awk -F',' '{print $3}')
         case "$nta_val" in
             *[!0-9-]*|'') nr_ta="" ;;
             *) nr_ta="$nta_val" ;;
