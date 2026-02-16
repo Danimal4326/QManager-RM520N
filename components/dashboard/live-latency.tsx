@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/chart";
 import { Button } from "../ui/button";
 import { TbPlayerPlayFilled } from "react-icons/tb";
+import { SpeedtestDialog } from "./speedtest-dialog";
 
 import type { ConnectivityStatus } from "@/types/modem-status";
 
@@ -58,6 +59,12 @@ const LiveLatencyComponent = ({
   connectivity,
   isLoading,
 }: LiveLatencyComponentProps) => {
+  const [speedtestOpen, setSpeedtestOpen] = useState(false);
+
+  const handleSpeedtestOpen = useCallback(() => {
+    setSpeedtestOpen(true);
+  }, []);
+
   const chartData = useMemo(() => {
     if (
       !connectivity?.latency_history ||
@@ -98,89 +105,98 @@ const LiveLatencyComponent = ({
   }, [connectivity?.latency_history, connectivity?.history_interval_sec]);
 
   return (
-    <Card className="@container/card">
-      <CardHeader className="-mb-4">
-        <CardTitle className="text-lg font-semibold tabular-nums">
-          Live Latency and Speed Test
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig}>
-          <LineChart
-            accessibilityLayer
-            data={chartData}
-            margin={{
-              left: 12,
-              right: 12,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="time"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  formatter={(value, name) => (
-                    <>
-                      <div
-                        className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-(--color-bg)"
-                        style={
-                          {
-                            "--color-bg": `var(--color-${name})`,
-                          } as React.CSSProperties
-                        }
-                      />
-                      {chartConfig[name as keyof typeof chartConfig]?.label ||
-                        name}
-                      <div className="ml-auto flex items-baseline gap-0.5 font-mono font-medium tabular-nums text-foreground">
-                        {value}
-                        <span className="font-normal text-muted-foreground">
-                          {name === "latency" ? "ms" : "%"}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                />
-              }
-            />
-            <Line
-              dataKey="latency"
-              type="monotone"
-              stroke="var(--color-latency)"
-              strokeWidth={2}
-              dot={false}
-            />
-            <Line
-              dataKey="packetloss"
-              type="monotone"
-              stroke="var(--color-packetloss)"
-              strokeWidth={2}
-              dot={false}
-            />
-          </LineChart>
-        </ChartContainer>
-      </CardContent>
-      <CardFooter>
-        <div className="flex w-full items-start gap-2 text-sm">
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2 leading-none font-medium">
-              Speed Test
-            </div>
-            <div className="text-muted-foreground flex items-center gap-2 leading-none">
-              <Button variant="default" size="icon-sm" className="p-0.5 rounded-full">
-                <TbPlayerPlayFilled className="w-4 h-4" />
-              </Button>
-              Start a speed test to measure your current network speed.
+    <>
+      <Card className="@container/card">
+        <CardHeader className="-mb-4">
+          <CardTitle className="text-lg font-semibold tabular-nums">
+            Live Latency and Speed Test
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={chartConfig}>
+            <LineChart
+              accessibilityLayer
+              data={chartData}
+              margin={{
+                left: 12,
+                right: 12,
+              }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="time"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => (
+                      <>
+                        <div
+                          className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-(--color-bg)"
+                          style={
+                            {
+                              "--color-bg": `var(--color-${name})`,
+                            } as React.CSSProperties
+                          }
+                        />
+                        {chartConfig[name as keyof typeof chartConfig]?.label ||
+                          name}
+                        <div className="ml-auto flex items-baseline gap-0.5 font-mono font-medium tabular-nums text-foreground">
+                          {value}
+                          <span className="font-normal text-muted-foreground">
+                            {name === "latency" ? "ms" : "%"}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  />
+                }
+              />
+              <Line
+                dataKey="latency"
+                type="monotone"
+                stroke="var(--color-latency)"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                dataKey="packetloss"
+                type="monotone"
+                stroke="var(--color-packetloss)"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ChartContainer>
+        </CardContent>
+        <CardFooter>
+          <div className="flex w-full items-start gap-2 text-sm">
+            <div className="grid gap-2">
+              <div className="flex items-center gap-2 leading-none font-medium">
+                Speed Test
+              </div>
+              <div className="text-muted-foreground flex items-center gap-2 leading-none">
+                <Button
+                  variant="default"
+                  size="icon-sm"
+                  className="p-0.5 rounded-full"
+                  onClick={handleSpeedtestOpen}
+                >
+                  <TbPlayerPlayFilled className="w-4 h-4" />
+                </Button>
+                Start a speed test to measure your current network speed.
+              </div>
             </div>
           </div>
-        </div>
-      </CardFooter>
-    </Card>
+        </CardFooter>
+      </Card>
+
+      <SpeedtestDialog open={speedtestOpen} onOpenChange={setSpeedtestOpen} />
+    </>
   );
 };
 
