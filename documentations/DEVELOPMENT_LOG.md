@@ -317,11 +317,17 @@ SIM card serial number.
 ```
 We extract: `LTE-CATEGORY:20` → stored as `"20"`.
 
-#### `AT+QNWCFG="lte_mimo_layers"`
+#### `AT+QNWCFG="lte_mimo_layers"` / `"nr5g_mimo_layers"`
+
+**Architecture:** MIMO layer reporting is enabled once at boot via `AT+QNWCFG="lte_mimo_layers",1` and `AT+QNWCFG="nr5g_mimo_layers",1` (in `collect_boot_data()`). Tier 2 polling uses query-only commands.
+
+**⚠ Note:** The NR command is `nr5g_mimo_layers`, NOT `nr_mimo_layers`. Same `nr5g_` prefix convention as time advance.
+
 ```
-+QNWCFG: "lte_mimo_layers",1,4
++QNWCFG: "lte_mimo_layers",1,4      ← LTE: UL=1, DL=4 → "LTE 1x4"
++QNWCFG: "nr5g_mimo_layers",1,2     ← NR: UL=1, DL=2 → "NR 1x2"
 ```
-Fields: `<ulmimo>,<dlmimo>`. Stored as `"LTE 1x4"`.
+Fields: `<ulmimo>,<dlmimo>`. Combined as `"LTE 1x4 | NR 1x2"`. NR query returns ERROR when no 5G active (gracefully handled — displays LTE-only).
 
 ### Commands NOT Used
 
@@ -754,7 +760,7 @@ This allows callers to distinguish lock contention from modem failures.
 
 18. **Error recovery testing** — SIM ejection, modem unresponsive, `sms_tool` crash, stale lock scenarios.
 19. **Long command support** — Verify `AT+QSCAN` flag-based coordination between poller and Cell Scanner page.
-20. **NR MIMO layers** — ✅ Done. MIMO moved from boot-only to Tier 2 polling. Now queries both `AT+QNWCFG="lte_mimo_layers"` and `AT+QNWCFG="nr_mimo_layers"` every 15 cycles. Parser combines into `"LTE 1x4 | NR 2x4"` format. NR MIMO gracefully returns empty when no 5G is active.
+20. **NR MIMO layers** — ✅ Done. MIMO moved from boot-only to Tier 2 polling. Boot-time enable commands (`AT+QNWCFG="lte_mimo_layers",1` and `AT+QNWCFG="nr5g_mimo_layers",1`) activate layer reporting. Tier 2 queries both `AT+QNWCFG="lte_mimo_layers"` and `AT+QNWCFG="nr5g_mimo_layers"` every 15 cycles. Parser combines into `"LTE 1x4 | NR 1x2"` format. NR MIMO gracefully returns empty when no 5G is active. **Bug fix (Feb 16):** Original implementation used wrong NR command name `"nr_mimo_layers"` — corrected to `"nr5g_mimo_layers"` (same `nr5g_` prefix convention as time advance). Fixed in poller (boot enable + boot query + Tier 2 query) and parser (grep + sed patterns).
 21. **TA-based cell distance** — ✅ Done. Phase 1 (LTE): `parse_time_advance()` used `rev` (not available on BusyBox). Replaced with `awk -F',' '{print $NF}'`. Phase 2 (NR): wrong AT command name (`nr_time_advance` → `nr5g_time_advance`), wrong grep pattern, wrong field extraction (`$NF` → `$3` due to trailing 4th field in NR response). See Section 9.
 22. **NSA SCS parsing** — ✅ Done. `scs` field was `null` in NSA mode because `\r` carriage return on the last CSV field (`cut -d',' -f11` returned `1\r`) caused `map_scs_to_khz()` case match to fail. Fix: added `tr -d '\r'` to the NSA NR CSV strip pipeline in `parse_serving_cell()`.
 

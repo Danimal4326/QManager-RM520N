@@ -139,9 +139,6 @@ function ResultDisplay({
 }: {
   result: NonNullable<ReturnType<typeof useSpeedtest>["result"]>;
 }) {
-  const downloadMbps = bytesToMbps(result.download.bandwidth);
-  const uploadMbps = bytesToMbps(result.upload.bandwidth);
-
   return (
     <div className="space-y-4">
       {/* Primary metrics — three big numbers */}

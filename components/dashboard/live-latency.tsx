@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import {
@@ -16,8 +16,19 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { Button } from "../ui/button";
-import { TbPlayerPlayFilled } from "react-icons/tb";
+import {
+  TbCircleArrowDownFilled,
+  TbCircleArrowUpFilled,
+  TbPlayerPlayFilled,
+  TbTimeline,
+} from "react-icons/tb";
 import { SpeedtestDialog } from "./speedtest-dialog";
+import {
+  bytesToMbps,
+  formatSpeed,
+  type SpeedtestFinalResult,
+  type SpeedtestStatusResponse,
+} from "@/types/speedtest";
 
 import type { ConnectivityStatus } from "@/types/modem-status";
 
@@ -39,6 +50,8 @@ const CHART_POINTS = 5;
 /** Rolling window size for per-point packet loss calculation */
 const LOSS_WINDOW = 10;
 
+const CGI_BASE = "/cgi-bin/quecmanager/at_cmd";
+
 interface LiveLatencyComponentProps {
   connectivity: ConnectivityStatus | null;
   isLoading: boolean;
@@ -55,15 +68,44 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const LiveLatencyComponent = ({
-  connectivity,
-  isLoading,
-}: LiveLatencyComponentProps) => {
+const LiveLatencyComponent = ({ connectivity }: LiveLatencyComponentProps) => {
   const [speedtestOpen, setSpeedtestOpen] = useState(false);
+  const [cachedResult, setCachedResult] = useState<SpeedtestFinalResult | null>(
+    null,
+  );
+
+  // Fetch any cached speedtest result on mount
+  const fetchCachedResult = useCallback(async () => {
+    try {
+      const resp = await fetch(`${CGI_BASE}/speedtest_status.sh`);
+      if (!resp.ok) return;
+      const data: SpeedtestStatusResponse = await resp.json();
+      if (data.status === "complete" && data.result) {
+        setCachedResult(data.result);
+      }
+    } catch {
+      // Silent — no cached result is fine
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCachedResult();
+  }, [fetchCachedResult]);
 
   const handleSpeedtestOpen = useCallback(() => {
     setSpeedtestOpen(true);
   }, []);
+
+  // Refresh cached result when dialog closes (may have new result)
+  const handleDialogChange = useCallback(
+    (open: boolean) => {
+      setSpeedtestOpen(open);
+      if (!open) {
+        fetchCachedResult();
+      }
+    },
+    [fetchCachedResult],
+  );
 
   const chartData = useMemo(() => {
     if (
@@ -103,6 +145,36 @@ const LiveLatencyComponent = ({
       };
     });
   }, [connectivity?.latency_history, connectivity?.history_interval_sec]);
+
+  // Build the footer description from cached result
+  const footerDescription = useMemo(() => {
+    if (!cachedResult) {
+      return "Start a speed test to measure your current network speed.";
+    }
+    const dl = formatSpeed(cachedResult.download.bandwidth);
+    const ul = formatSpeed(cachedResult.upload.bandwidth);
+    const ping = cachedResult.ping.latency.toFixed(0);
+    return (
+      <div className="flex items-center gap-x-4">
+        <p className="font-medium text-sm text-muted-foreground">
+          Speedtest result:
+        </p>
+        <div className="flex items-center gap-x-0.5">
+          <TbCircleArrowDownFilled className="text-blue-500 w-5 h-5" />
+          <p>{dl} Mbps</p>
+        </div>
+        <div className="flex items-center gap-x-0.5">
+          <TbCircleArrowUpFilled className="text-purple-500 w-5 h-5"/>
+          <p>{ul} Mbps</p>
+        </div>
+
+        <div className="flex items-center gap-x-0.5">
+          <TbTimeline className="text-green-500 w-5 h-5" />
+          <p>{ping} ms</p>
+        </div>
+      </div>
+    );
+  }, [cachedResult]);
 
   return (
     <>
@@ -188,14 +260,22 @@ const LiveLatencyComponent = ({
                 >
                   <TbPlayerPlayFilled className="w-4 h-4" />
                 </Button>
-                Start a speed test to measure your current network speed.
+                {cachedResult ? (
+                  <span className="font-medium text-sm">
+                    {footerDescription}
+                  </span>
+                ) : (
+                  <span className="font-medium text-sm">
+                    {footerDescription}
+                  </span>
+                )}
               </div>
             </div>
           </div>
         </CardFooter>
       </Card>
 
-      <SpeedtestDialog open={speedtestOpen} onOpenChange={setSpeedtestOpen} />
+      <SpeedtestDialog open={speedtestOpen} onOpenChange={handleDialogChange} />
     </>
   );
 };

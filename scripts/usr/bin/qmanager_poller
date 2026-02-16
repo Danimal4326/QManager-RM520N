@@ -395,11 +395,17 @@ collect_boot_data() {
     fi
     sleep "$SIP_DELAY"
 
+    # Enable MIMO layer reporting (one-time, persists until modem reboot)
+    qcmd_exec 'AT+QNWCFG="lte_mimo_layers",1' >/dev/null 2>&1
+    sleep "$SIP_DELAY"
+    qcmd_exec 'AT+QNWCFG="nr5g_mimo_layers",1' >/dev/null 2>&1
+    sleep "$SIP_DELAY"
+
     # MIMO layers — LTE + NR (initial reading, will be re-polled in Tier 2)
     local lte_mimo_result nr_mimo_result
     lte_mimo_result=$(qcmd_exec 'AT+QNWCFG="lte_mimo_layers"')
     sleep "$SIP_DELAY"
-    nr_mimo_result=$(qcmd_exec 'AT+QNWCFG="nr_mimo_layers"' 2>/dev/null)
+    nr_mimo_result=$(qcmd_exec 'AT+QNWCFG="nr5g_mimo_layers"' 2>/dev/null)
     parse_mimo "$lte_mimo_result" "$nr_mimo_result"
 
     # Enable Timing Advance reporting (one-time, persists until modem reboot)
@@ -570,7 +576,7 @@ poll_tier2() {
     local lte_mimo_result nr_mimo_result
     lte_mimo_result=$(qcmd_exec 'AT+QNWCFG="lte_mimo_layers"')
     sleep "$SIP_DELAY"
-    nr_mimo_result=$(qcmd_exec 'AT+QNWCFG="nr_mimo_layers"' 2>/dev/null)
+    nr_mimo_result=$(qcmd_exec 'AT+QNWCFG="nr5g_mimo_layers"' 2>/dev/null)
     parse_mimo "$lte_mimo_result" "$nr_mimo_result"
 }
 

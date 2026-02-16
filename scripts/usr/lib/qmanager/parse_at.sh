@@ -338,13 +338,13 @@ parse_mimo() {
         fi
     fi
 
-    # NR MIMO: +QNWCFG: "nr_mimo_layers",<ul>,<dl>
+    # NR MIMO: +QNWCFG: "nr5g_mimo_layers",<ul>,<dl>
     if [ -n "$nr_raw" ]; then
         local nr_line
-        nr_line=$(printf '%s\n' "$nr_raw" | grep '+QNWCFG: "nr_mimo_layers"' | head -1)
+        nr_line=$(printf '%s\n' "$nr_raw" | grep '+QNWCFG: "nr5g_mimo_layers"' | head -1)
         if [ -n "$nr_line" ]; then
             local csv
-            csv=$(printf '%s' "$nr_line" | sed 's/+QNWCFG: "nr_mimo_layers",//g' | tr -d ' \r')
+            csv=$(printf '%s' "$nr_line" | sed 's/+QNWCFG: "nr5g_mimo_layers",//g' | tr -d ' \r')
             local ul_mimo dl_mimo
             ul_mimo=$(printf '%s' "$csv" | cut -d',' -f1)
             dl_mimo=$(printf '%s' "$csv" | cut -d',' -f2)
