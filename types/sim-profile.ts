@@ -133,6 +133,8 @@ export interface CurrentModemSettings {
   apn_profiles: CurrentApnProfile[];
   /** Current IMEI from AT+CGSN */
   imei: string;
+  /** Current SIM ICCID from AT+QCCID */
+  iccid: string;
   /** Current network mode from AT+QNWPREFCFG="mode_pref" */
   network_mode: string;
   /** Current LTE bands (colon-delimited) from AT+QNWPREFCFG="lte_band" */

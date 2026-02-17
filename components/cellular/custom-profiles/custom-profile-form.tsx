@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 
 import {
   Field,
@@ -63,7 +63,7 @@ interface CustomProfileFormProps {
 
 const DEFAULT_FORM_STATE: ProfileFormData = {
   name: "",
-  mno: "",
+  mno: "Custom",
   sim_iccid: "",
   cid: 1,
   apn_name: "",
@@ -124,55 +124,65 @@ const CustomProfileFormComponent = ({
   onLoadCurrentSettings,
 }: CustomProfileFormProps) => {
   const [form, setForm] = useState<ProfileFormData>(DEFAULT_FORM_STATE);
-  const [selectedMno, setSelectedMno] = useState<string>(MNO_CUSTOM_ID);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const isEditing = !!editingProfile;
 
-  // Populate form when editing
-  useEffect(() => {
-    if (editingProfile) {
-      setForm(profileToFormData(editingProfile));
-      // Detect if the profile's MNO matches a preset
-      const matchedPreset = MNO_PRESETS.find(
-        (p) => p.label === editingProfile.mno
-      );
-      setSelectedMno(matchedPreset ? matchedPreset.id : MNO_CUSTOM_ID);
-      setErrors({});
-      setSuccessMsg(null);
-    }
-  }, [editingProfile]);
+  // Derive MNO selection from form.mno — no separate state needed
+  const selectedMno = useMemo(() => {
+    const match = MNO_PRESETS.find((p) => p.label === form.mno);
+    return match ? match.id : MNO_CUSTOM_ID;
+  }, [form.mno]);
+
+  // Reset form when the editing target changes (React-recommended pattern:
+  // compare previous prop during render instead of syncing via useEffect)
+  const [prevEditingId, setPrevEditingId] = useState<string | null>(null);
+  const currentEditingId = editingProfile?.id ?? null;
+
+  if (currentEditingId !== prevEditingId) {
+    setPrevEditingId(currentEditingId);
+    setForm(
+      editingProfile ? profileToFormData(editingProfile) : DEFAULT_FORM_STATE
+    );
+    setErrors({});
+    setSuccessMsg(null);
+  }
 
   // Pre-fill from current modem settings when loaded (create mode only)
-  useEffect(() => {
-    if (currentSettings && !isEditing) {
-      setForm((prev) => ({
-        ...prev,
-        imei: currentSettings.imei || prev.imei,
-        network_mode: currentSettings.network_mode
-          ? atModeToFormMode(currentSettings.network_mode)
-          : prev.network_mode,
-        lte_bands: currentSettings.lte_bands || prev.lte_bands,
-        nsa_nr_bands: currentSettings.nsa_nr_bands || prev.nsa_nr_bands,
-        sa_nr_bands: currentSettings.sa_nr_bands || prev.sa_nr_bands,
-        // Pre-fill APN from CID 1 if available
-        ...(currentSettings.apn_profiles?.length > 0
-          ? (() => {
-              const primary =
-                currentSettings.apn_profiles.find((a) => a.cid === 1) ||
-                currentSettings.apn_profiles[0];
-              return {
-                cid: primary.cid,
-                apn_name: primary.apn || "",
-                pdp_type: primary.pdp_type || "IPV4V6",
-              };
-            })()
-          : {}),
-      }));
-    }
-  }, [currentSettings, isEditing]);
+  // Compare during render instead of useEffect to avoid cascading setState.
+  const [prevSettings, setPrevSettings] = useState<CurrentModemSettings | null>(null);
+
+  if (currentSettings && currentSettings !== prevSettings && !isEditing) {
+    setPrevSettings(currentSettings);
+    const apnPrefill =
+      currentSettings.apn_profiles?.length > 0
+        ? (() => {
+            const primary =
+              currentSettings.apn_profiles.find((a) => a.cid === 1) ||
+              currentSettings.apn_profiles[0];
+            return {
+              cid: primary.cid,
+              apn_name: primary.apn || "",
+              pdp_type: primary.pdp_type || "IPV4V6",
+            };
+          })()
+        : {};
+
+    setForm((prev) => ({
+      ...prev,
+      sim_iccid: currentSettings.iccid || prev.sim_iccid,
+      imei: currentSettings.imei || prev.imei,
+      network_mode: currentSettings.network_mode
+        ? atModeToFormMode(currentSettings.network_mode)
+        : prev.network_mode,
+      lte_bands: currentSettings.lte_bands || prev.lte_bands,
+      nsa_nr_bands: currentSettings.nsa_nr_bands || prev.nsa_nr_bands,
+      sa_nr_bands: currentSettings.sa_nr_bands || prev.sa_nr_bands,
+      ...apnPrefill,
+    }));
+  }
 
   const updateField = <K extends keyof ProfileFormData>(
     key: K,
@@ -189,10 +199,8 @@ const CustomProfileFormComponent = ({
   };
 
   const handleMnoChange = (mnoId: string) => {
-    setSelectedMno(mnoId);
     const preset = getMnoPreset(mnoId);
     if (preset) {
-      // Pre-fill from preset
       setForm((prev) => ({
         ...prev,
         mno: preset.label,
@@ -202,8 +210,7 @@ const CustomProfileFormComponent = ({
         hl: preset.hl,
       }));
     } else {
-      // Custom — clear MNO name, leave other fields for manual entry
-      setForm((prev) => ({ ...prev, mno: "" }));
+      setForm((prev) => ({ ...prev, mno: "Custom" }));
     }
   };
 
@@ -263,7 +270,6 @@ const CustomProfileFormComponent = ({
       );
       if (!isEditing) {
         setForm(DEFAULT_FORM_STATE);
-        setSelectedMno(MNO_CUSTOM_ID);
       }
     }
   };
@@ -273,7 +279,6 @@ const CustomProfileFormComponent = ({
       onCancel();
     } else {
       setForm(DEFAULT_FORM_STATE);
-      setSelectedMno(MNO_CUSTOM_ID);
       setErrors({});
       setSuccessMsg(null);
     }
@@ -344,31 +349,23 @@ const CustomProfileFormComponent = ({
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  {selectedMno === MNO_CUSTOM_ID ? (
-                    <Input
-                      type="text"
-                      placeholder="Enter carrier name"
-                      value={form.mno}
-                      onChange={(e) => updateField("mno", e.target.value)}
-                      className="mt-2"
-                    />
-                  ) : (
-                    <FieldDescription>
-                      APN, CID, TTL, and HL pre-filled from preset.
-                    </FieldDescription>
-                  )}
+                  <FieldDescription>
+                    {selectedMno === MNO_CUSTOM_ID
+                      ? "All fields below must be configured manually."
+                      : "APN, CID, TTL, and HL pre-filled from preset."}
+                  </FieldDescription>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="simIccid">SIM ICCID</FieldLabel>
                   <Input
                     id="simIccid"
                     type="text"
-                    placeholder="Optional — binds profile to a SIM"
+                    placeholder="Auto-filled from current SIM"
                     value={form.sim_iccid}
                     onChange={(e) => updateField("sim_iccid", e.target.value)}
                   />
                   <FieldDescription>
-                    Informational only. Not enforced.
+                    Auto-filled from current SIM. Editable if creating for a different SIM.
                   </FieldDescription>
                 </Field>
               </div>

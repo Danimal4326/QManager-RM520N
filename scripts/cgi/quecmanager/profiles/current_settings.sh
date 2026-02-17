@@ -104,6 +104,11 @@ imei_resp=$(run_at "AT+CGSN")
 current_imei=$(printf '%s' "$imei_resp" | grep -o '[0-9]\{15\}' | head -1)
 sleep "$CMD_GAP"
 
+# --- 2b. Current ICCID from AT+QCCID -----------------------------------------
+iccid_resp=$(run_at "AT+QCCID")
+current_iccid=$(printf '%s' "$iccid_resp" | grep -o '[0-9]\{19,20\}' | head -1)
+sleep "$CMD_GAP"
+
 # --- 3. Network mode from AT+QNWPREFCFG="mode_pref" -------------------------
 mode_resp=$(run_at 'AT+QNWPREFCFG="mode_pref"')
 current_mode=$(printf '%s' "$mode_resp" | sed -n 's/.*"mode_pref",\(.*\)/\1/p' | tr -d ' \r')
@@ -138,6 +143,7 @@ cat << RESP_EOF
 {
   "apn_profiles": ${apn_array},
   "imei": "$(_esc "$current_imei")",
+  "iccid": "$(_esc "$current_iccid")",
   "network_mode": "$(_esc "$current_mode")",
   "lte_bands": "$(_esc "$current_lte")",
   "nsa_nr_bands": "$(_esc "$current_nsa")",
