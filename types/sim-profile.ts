@@ -62,16 +62,9 @@ export interface ApnSettings {
   name: string;
   /** PDP type */
   pdp_type: PdpType;
-  /** Authentication type: 0=None, 1=PAP, 2=CHAP, 3=PAP+CHAP */
-  auth_type: AuthType;
-  /** Auth username (empty if auth_type=0) */
-  username: string;
-  /** Auth password (empty if auth_type=0) */
-  password: string;
 }
 
 export type PdpType = "IP" | "IPV6" | "IPV4V6";
-export type AuthType = 0 | 1 | 2 | 3;
 export type NetworkModePreference = "AUTO" | "LTE_ONLY" | "NR_ONLY" | "LTE_NR";
 
 // --- Profile List Response ---------------------------------------------------
@@ -194,14 +187,6 @@ export const PDP_TYPE_LABELS: Record<PdpType, string> = {
   IP: "IPv4 Only",
   IPV6: "IPv6 Only",
   IPV4V6: "IPv4 + IPv6 (Dual Stack)",
-};
-
-/** Human-readable labels for auth types */
-export const AUTH_TYPE_LABELS: Record<AuthType, string> = {
-  0: "None",
-  1: "PAP",
-  2: "CHAP",
-  3: "PAP + CHAP",
 };
 
 /** Human-readable labels for apply step statuses */

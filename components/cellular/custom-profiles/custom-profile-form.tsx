@@ -38,11 +38,14 @@ import type { ProfileFormData } from "@/hooks/use-sim-profiles";
 import {
   NETWORK_MODE_LABELS,
   PDP_TYPE_LABELS,
-  AUTH_TYPE_LABELS,
   type NetworkModePreference,
   type PdpType,
-  type AuthType,
 } from "@/types/sim-profile";
+import {
+  MNO_PRESETS,
+  MNO_CUSTOM_ID,
+  getMnoPreset,
+} from "@/constants/mno-presets";
 
 // =============================================================================
 // CustomProfileFormComponent — Create / Edit SIM Profile Form
@@ -65,9 +68,6 @@ const DEFAULT_FORM_STATE: ProfileFormData = {
   cid: 1,
   apn_name: "",
   pdp_type: "IPV4V6",
-  auth_type: 0,
-  username: "",
-  password: "",
   imei: "",
   ttl: 64,
   hl: 64,
@@ -87,9 +87,6 @@ function profileToFormData(profile: SimProfile): ProfileFormData {
     cid: s.apn.cid,
     apn_name: s.apn.name,
     pdp_type: s.apn.pdp_type,
-    auth_type: s.apn.auth_type,
-    username: s.apn.username,
-    password: s.apn.password,
     imei: s.imei,
     ttl: s.ttl,
     hl: s.hl,
@@ -127,6 +124,7 @@ const CustomProfileFormComponent = ({
   onLoadCurrentSettings,
 }: CustomProfileFormProps) => {
   const [form, setForm] = useState<ProfileFormData>(DEFAULT_FORM_STATE);
+  const [selectedMno, setSelectedMno] = useState<string>(MNO_CUSTOM_ID);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -137,6 +135,11 @@ const CustomProfileFormComponent = ({
   useEffect(() => {
     if (editingProfile) {
       setForm(profileToFormData(editingProfile));
+      // Detect if the profile's MNO matches a preset
+      const matchedPreset = MNO_PRESETS.find(
+        (p) => p.label === editingProfile.mno
+      );
+      setSelectedMno(matchedPreset ? matchedPreset.id : MNO_CUSTOM_ID);
       setErrors({});
       setSuccessMsg(null);
     }
@@ -182,6 +185,25 @@ const CustomProfileFormComponent = ({
         delete next[key];
         return next;
       });
+    }
+  };
+
+  const handleMnoChange = (mnoId: string) => {
+    setSelectedMno(mnoId);
+    const preset = getMnoPreset(mnoId);
+    if (preset) {
+      // Pre-fill from preset
+      setForm((prev) => ({
+        ...prev,
+        mno: preset.label,
+        apn_name: preset.apn_name,
+        cid: preset.cid,
+        ttl: preset.ttl,
+        hl: preset.hl,
+      }));
+    } else {
+      // Custom — clear MNO name, leave other fields for manual entry
+      setForm((prev) => ({ ...prev, mno: "" }));
     }
   };
 
@@ -241,6 +263,7 @@ const CustomProfileFormComponent = ({
       );
       if (!isEditing) {
         setForm(DEFAULT_FORM_STATE);
+        setSelectedMno(MNO_CUSTOM_ID);
       }
     }
   };
@@ -250,6 +273,7 @@ const CustomProfileFormComponent = ({
       onCancel();
     } else {
       setForm(DEFAULT_FORM_STATE);
+      setSelectedMno(MNO_CUSTOM_ID);
       setErrors({});
       setSuccessMsg(null);
     }
@@ -301,16 +325,38 @@ const CustomProfileFormComponent = ({
 
               <div className="grid grid-cols-1 @md/card:grid-cols-2 gap-4">
                 <Field>
-                  <FieldLabel htmlFor="mno">
-                    Mobile Network Operator
-                  </FieldLabel>
-                  <Input
-                    id="mno"
-                    type="text"
-                    placeholder="e.g., Smart, Globe, T-Mobile"
-                    value={form.mno}
-                    onChange={(e) => updateField("mno", e.target.value)}
-                  />
+                  <FieldLabel>Mobile Network Operator</FieldLabel>
+                  <Select
+                    value={selectedMno}
+                    onValueChange={handleMnoChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select carrier…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MNO_PRESETS.map((preset) => (
+                        <SelectItem key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={MNO_CUSTOM_ID}>
+                        Custom
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {selectedMno === MNO_CUSTOM_ID ? (
+                    <Input
+                      type="text"
+                      placeholder="Enter carrier name"
+                      value={form.mno}
+                      onChange={(e) => updateField("mno", e.target.value)}
+                      className="mt-2"
+                    />
+                  ) : (
+                    <FieldDescription>
+                      APN, CID, TTL, and HL pre-filled from preset.
+                    </FieldDescription>
+                  )}
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="simIccid">SIM ICCID</FieldLabel>
@@ -374,57 +420,6 @@ const CustomProfileFormComponent = ({
                   />
                   {errors.cid && <FieldError>{errors.cid}</FieldError>}
                 </Field>
-              </div>
-
-              <div className="grid grid-cols-1 @md/card:grid-cols-3 gap-4">
-                <Field>
-                  <FieldLabel>Auth Type</FieldLabel>
-                  <Select
-                    value={String(form.auth_type)}
-                    onValueChange={(v) =>
-                      updateField("auth_type", parseInt(v) as AuthType)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(
-                        Object.entries(AUTH_TYPE_LABELS) as [string, string][]
-                      ).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                {form.auth_type > 0 && (
-                  <>
-                    <Field>
-                      <FieldLabel htmlFor="apnUser">Username</FieldLabel>
-                      <Input
-                        id="apnUser"
-                        type="text"
-                        value={form.username}
-                        onChange={(e) =>
-                          updateField("username", e.target.value)
-                        }
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="apnPass">Password</FieldLabel>
-                      <Input
-                        id="apnPass"
-                        type="password"
-                        value={form.password}
-                        onChange={(e) =>
-                          updateField("password", e.target.value)
-                        }
-                      />
-                    </Field>
-                  </>
-                )}
               </div>
 
               <FieldSeparator>Device Settings</FieldSeparator>

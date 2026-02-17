@@ -146,14 +146,6 @@ _validate_pdp_type() {
     esac
 }
 
-# Validate auth type: 0-3
-_validate_auth_type() {
-    case "$1" in
-        0|1|2|3) return 0 ;;
-        *) return 1 ;;
-    esac
-}
-
 # Validate CID: 1-15
 _validate_cid() {
     case "$1" in
@@ -280,9 +272,6 @@ profile_save() {
     apn_cid=$(_json_extract_raw "$input" "cid")
     apn_name=$(_json_extract "$input" "apn_name")
     apn_pdp_type=$(_json_extract "$input" "pdp_type")
-    apn_auth_type=$(_json_extract_raw "$input" "auth_type")
-    apn_username=$(_json_extract "$input" "username")
-    apn_password=$(_json_extract "$input" "password")
 
     imei=$(_json_extract "$input" "imei")
     ttl=$(_json_extract_raw "$input" "ttl")
@@ -296,7 +285,6 @@ profile_save() {
     # --- Apply defaults for optional fields ---
     [ -z "$apn_cid" ] || [ "$apn_cid" = "null" ] && apn_cid=1
     [ -z "$apn_pdp_type" ] && apn_pdp_type="IPV4V6"
-    [ -z "$apn_auth_type" ] || [ "$apn_auth_type" = "null" ] && apn_auth_type=0
     [ -z "$ttl" ] || [ "$ttl" = "null" ] && ttl=0
     [ -z "$hl" ] || [ "$hl" = "null" ] && hl=0
     [ -z "$network_mode" ] && network_mode="AUTO"
@@ -315,10 +303,6 @@ profile_save() {
 
     if [ -n "$apn_pdp_type" ] && ! _validate_pdp_type "$apn_pdp_type"; then
         errors="${errors}Invalid PDP type (must be IP, IPV6, or IPV4V6). "
-    fi
-
-    if ! _validate_auth_type "$apn_auth_type"; then
-        errors="${errors}Invalid auth type (must be 0-3). "
     fi
 
     if [ -n "$imei" ] && ! _validate_imei "$imei"; then
@@ -397,10 +381,7 @@ profile_save() {
     "apn": {
       "cid": $apn_cid,
       "name": "$(_json_str_escape "$apn_name")",
-      "pdp_type": "$apn_pdp_type",
-      "auth_type": $apn_auth_type,
-      "username": "$(_json_str_escape "$apn_username")",
-      "password": "$(_json_str_escape "$apn_password")"
+      "pdp_type": "$apn_pdp_type"
     },
     "imei": "$(_json_str_escape "$imei")",
     "ttl": $ttl,

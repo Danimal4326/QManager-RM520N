@@ -60,9 +60,6 @@ export interface ProfileFormData {
   /** APN name */
   apn_name: string;
   pdp_type: string;
-  auth_type: number;
-  username: string;
-  password: string;
   imei: string;
   ttl: number;
   hl: number;
