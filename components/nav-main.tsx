@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -35,6 +36,15 @@ export function NavMain({
   }[];
 }) {
   const pathname = usePathname();
+  const [openItems, setOpenItems] = React.useState<Record<string, boolean>>({});
+
+  React.useEffect(() => {
+    const states: Record<string, boolean> = {};
+    items.forEach((item) => {
+      states[item.title] = pathname === item.url;
+    });
+    setOpenItems(states);
+  }, [pathname, items]);
 
   return (
     <SidebarGroup>
@@ -43,7 +53,14 @@ export function NavMain({
         {items.map((item) => {
           const isActive = pathname === item.url;
           return (
-            <Collapsible key={item.title} asChild defaultOpen={isActive}>
+            <Collapsible
+              key={item.title}
+              asChild
+              open={openItems[item.title] ?? false}
+              onOpenChange={(isOpen) =>
+                setOpenItems((prev) => ({ ...prev, [item.title]: isOpen }))
+              }
+            >
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild

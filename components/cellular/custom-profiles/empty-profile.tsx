@@ -47,7 +47,7 @@ const EmptyProfileViewComponent = ({ onRefresh }: EmptyProfileViewProps) => {
           <EmptyContent>
             {onRefresh && (
               <Button variant="outline" size="sm" onClick={onRefresh}>
-                <RefreshCcwIcon className="mr-1 h-3.5 w-3.5" />
+                <RefreshCcwIcon className="h-4 w-4" />
                 Refresh
               </Button>
             )}

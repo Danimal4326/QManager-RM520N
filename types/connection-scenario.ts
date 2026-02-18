@@ -150,8 +150,31 @@ export interface ScenarioActiveResponse {
   active_scenario_id: string;
 }
 
+/** Response from GET /cgi-bin/quecmanager/scenarios/list.sh */
+export interface ScenarioListResponse {
+  scenarios: StoredScenario[];
+  active_scenario_id: string;
+}
+
+/** Stored custom scenario definition (as saved on the backend) */
+export interface StoredScenario {
+  id: string;
+  name: string;
+  description: string;
+  gradient: string;
+  config: ScenarioConfig;
+}
+
 /** Response from POST /cgi-bin/quecmanager/scenarios/activate.sh */
 export interface ScenarioActivateResponse {
+  success: boolean;
+  id?: string;
+  error?: string;
+  detail?: string;
+}
+
+/** Generic success/error response for save/delete */
+export interface ScenarioApiResponse {
   success: boolean;
   id?: string;
   error?: string;

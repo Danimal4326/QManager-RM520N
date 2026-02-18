@@ -60,8 +60,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${euclid.className} antialiased`}>{children}</body>
-      <Toaster />
+      <body className={`${euclid.className} antialiased`}>
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

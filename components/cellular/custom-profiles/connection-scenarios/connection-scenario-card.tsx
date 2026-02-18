@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Gamepad2, Play, Zap, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,8 +41,6 @@ import type { ScenarioConfig } from "@/types/connection-scenario";
 // =============================================================================
 // Constants
 // =============================================================================
-
-const STORAGE_KEY = "qmanager_custom_scenarios";
 
 const gradientOptions = [
   { id: "purple", value: "from-violet-600 via-purple-600 to-indigo-700" },
@@ -109,51 +107,31 @@ const DEFAULT_SCENARIOS: Scenario[] = [
 ];
 
 // =============================================================================
-// localStorage helpers for custom scenarios
-// =============================================================================
-
-interface StoredScenario {
-  id: string;
-  name: string;
-  description: string;
-  gradient: string;
-  config: ScenarioConfig;
-}
-
-function loadCustomScenarios(): Scenario[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const stored: StoredScenario[] = JSON.parse(raw);
-    return stored.map((s) => ({
-      ...s,
-      icon: Sparkles,
-      pattern: "custom" as const,
-      isDefault: false,
-    }));
-  } catch {
-    return [];
-  }
-}
-
-function saveCustomScenarios(scenarios: Scenario[]) {
-  const toStore: StoredScenario[] = scenarios.map((s) => ({
-    id: s.id,
-    name: s.name,
-    description: s.description,
-    gradient: s.gradient,
-    config: s.config,
-  }));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
-}
-
-// =============================================================================
 // Main Component
 // =============================================================================
 
 const ConnectionScenariosCard = () => {
-  const { activeScenarioId, isLoading, isActivating, activateScenario } =
-    useConnectionScenarios();
+  const {
+    activeScenarioId,
+    customScenarios: storedScenarios,
+    isLoading,
+    isActivating,
+    activateScenario,
+    saveCustomScenario,
+    deleteCustomScenario,
+  } = useConnectionScenarios();
+
+  // Convert backend StoredScenario[] → UI Scenario[] (add icon, pattern, isDefault)
+  const customScenarios: Scenario[] = useMemo(
+    () =>
+      storedScenarios.map((s) => ({
+        ...s,
+        icon: Sparkles,
+        pattern: "custom" as const,
+        isDefault: false,
+      })),
+    [storedScenarios],
+  );
 
   // --- Selection state (view config without activating) ----------------------
   const [selectedId, setSelectedId] = useState<string>(activeScenarioId);
@@ -162,23 +140,6 @@ const ConnectionScenariosCard = () => {
   useEffect(() => {
     setSelectedId(activeScenarioId);
   }, [activeScenarioId]);
-
-  // --- Custom scenarios (persisted in localStorage) --------------------------
-  const [customScenarios, setCustomScenarios] = useState<Scenario[]>([]);
-  const [storageLoaded, setStorageLoaded] = useState(false);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    setCustomScenarios(loadCustomScenarios());
-    setStorageLoaded(true);
-  }, []);
-
-  // Persist to localStorage on change (skip initial load)
-  useEffect(() => {
-    if (storageLoaded) {
-      saveCustomScenarios(customScenarios);
-    }
-  }, [customScenarios, storageLoaded]);
 
   // --- Dialog state ----------------------------------------------------------
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -208,6 +169,14 @@ const ConnectionScenariosCard = () => {
   const scenarios = [...DEFAULT_SCENARIOS, ...customScenarios];
   const selectedScenario = scenarios.find((s) => s.id === selectedId);
   const isSelectedActive = selectedId === activeScenarioId;
+
+  // Fall back to first default if selected scenario isn't found
+  // (e.g., active custom scenario ID from backend doesn't match any local scenario)
+  useEffect(() => {
+    if (!isLoading && selectedId && !scenarios.find((s) => s.id === selectedId)) {
+      setSelectedId(DEFAULT_SCENARIOS[0].id);
+    }
+  }, [isLoading, selectedId, scenarios]);
 
   // ---------------------------------------------------------------------------
   // Handle selection (click card = view config)
@@ -243,17 +212,16 @@ const ConnectionScenariosCard = () => {
   // ---------------------------------------------------------------------------
   // Add custom scenario
   // ---------------------------------------------------------------------------
-  const handleAddScenario = () => {
-    if (!addName.trim()) return;
+  const [isSaving, setIsSaving] = useState(false);
 
-    const newScenario: Scenario = {
-      id: `custom-${Date.now()}`,
+  const handleAddScenario = async () => {
+    if (!addName.trim() || isSaving) return;
+
+    setIsSaving(true);
+    const scenarioData = {
       name: addName,
       description: addDescription || "Custom configuration",
-      icon: Sparkles,
       gradient: addGradient,
-      pattern: "custom",
-      isDefault: false,
       config: {
         atModeValue: addMode,
         mode: modeValueToLabel(addMode),
@@ -264,10 +232,17 @@ const ConnectionScenariosCard = () => {
       },
     };
 
-    setCustomScenarios((prev) => [...prev, newScenario]);
-    setSelectedId(newScenario.id);
-    setShowAddDialog(false);
-    resetAddForm();
+    const newId = await saveCustomScenario(scenarioData);
+    setIsSaving(false);
+
+    if (newId) {
+      setSelectedId(newId);
+      setShowAddDialog(false);
+      resetAddForm();
+      toast.success("Scenario created successfully.");
+    } else {
+      toast.error("Failed to create scenario.");
+    }
   };
 
   const resetAddForm = () => {
@@ -283,11 +258,16 @@ const ConnectionScenariosCard = () => {
   // ---------------------------------------------------------------------------
   // Delete custom scenario
   // ---------------------------------------------------------------------------
-  const handleDeleteScenario = (id: string) => {
-    setCustomScenarios((prev) => prev.filter((s) => s.id !== id));
-    // If the deleted scenario was selected, fall back to active
-    if (selectedId === id) {
-      setSelectedId(activeScenarioId);
+  const handleDeleteScenario = async (id: string) => {
+    const success = await deleteCustomScenario(id);
+    if (success) {
+      // If the deleted scenario was selected, fall back to active or default
+      if (selectedId === id) {
+        setSelectedId(activeScenarioId === id ? DEFAULT_SCENARIOS[0].id : activeScenarioId);
+      }
+      toast.success("Scenario deleted.");
+    } else {
+      toast.error("Failed to delete scenario.");
     }
   };
 
@@ -309,30 +289,32 @@ const ConnectionScenariosCard = () => {
     setShowEditDialog(true);
   };
 
-  const handleSaveEdit = () => {
-    if (!editName.trim()) return;
+  const handleSaveEdit = async () => {
+    if (!editName.trim() || isSaving) return;
 
-    setCustomScenarios((prev) =>
-      prev.map((s) =>
-        s.id === editId
-          ? {
-              ...s,
-              name: editName,
-              description: editDescription,
-              gradient: editGradient,
-              config: {
-                atModeValue: editMode,
-                mode: modeValueToLabel(editMode),
-                optimization: editOptimization,
-                lte_bands: inputToBands(editLteBands),
-                nsa_nr_bands: inputToBands(editNsaNrBands),
-                sa_nr_bands: inputToBands(editSaNrBands),
-              },
-            }
-          : s,
-      ),
-    );
-    setShowEditDialog(false);
+    setIsSaving(true);
+    const updatedId = await saveCustomScenario({
+      id: editId,
+      name: editName,
+      description: editDescription,
+      gradient: editGradient,
+      config: {
+        atModeValue: editMode,
+        mode: modeValueToLabel(editMode),
+        optimization: editOptimization,
+        lte_bands: inputToBands(editLteBands),
+        nsa_nr_bands: inputToBands(editNsaNrBands),
+        sa_nr_bands: inputToBands(editSaNrBands),
+      },
+    });
+    setIsSaving(false);
+
+    if (updatedId) {
+      setShowEditDialog(false);
+      toast.success("Scenario updated.");
+    } else {
+      toast.error("Failed to update scenario.");
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -533,9 +515,9 @@ const ConnectionScenariosCard = () => {
             </DialogClose>
             <Button
               onClick={handleAddScenario}
-              disabled={!addName.trim()}
+              disabled={!addName.trim() || isSaving}
             >
-              Create Scenario
+              {isSaving ? "Creating…" : "Create Scenario"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -678,8 +660,8 @@ const ConnectionScenariosCard = () => {
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={handleSaveEdit} disabled={!editName.trim()}>
-              Save Changes
+            <Button onClick={handleSaveEdit} disabled={!editName.trim() || isSaving}>
+              {isSaving ? "Saving…" : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

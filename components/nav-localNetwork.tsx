@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { ChevronRight, type LucideIcon } from "lucide-react"
 import { usePathname } from "next/navigation"
 
@@ -36,6 +37,17 @@ export function NavLocalNetwork({
   }[]
 }) {
   const pathname = usePathname()
+  const [openItems, setOpenItems] = React.useState<Record<string, boolean>>({})
+
+  React.useEffect(() => {
+    const states: Record<string, boolean> = {}
+    localNetwork.forEach((item) => {
+      const isActive = pathname === item.url
+      const isChildActive = item.items?.some((subItem) => pathname === subItem.url) ?? false
+      states[item.title] = isActive || isChildActive
+    })
+    setOpenItems(states)
+  }, [pathname, localNetwork])
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
@@ -50,7 +62,12 @@ export function NavLocalNetwork({
           const isParentOrChildActive = isActive || isChildActive
 
           return (
-          <Collapsible key={item.title} asChild defaultOpen={isParentOrChildActive}>
+          <Collapsible
+            key={item.title}
+            asChild
+            open={openItems[item.title] ?? false}
+            onOpenChange={(isOpen) => setOpenItems((prev) => ({ ...prev, [item.title]: isOpen }))}
+          >
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip={item.title} isActive={isParentOrChildActive}>
                 <a href={item.url}>

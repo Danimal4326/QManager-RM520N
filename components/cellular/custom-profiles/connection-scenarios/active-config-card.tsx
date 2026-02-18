@@ -1,5 +1,5 @@
 import React from "react";
-import { Settings, Zap } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -83,7 +83,6 @@ export const ActiveConfigCard = ({
                 onClick={onActivate}
                 className="gap-1.5"
               >
-                <Zap className="h-3.5 w-3.5" />
                 Activate
               </Button>
             )}
