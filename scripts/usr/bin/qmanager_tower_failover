@@ -1,0 +1,146 @@
+#!/bin/sh
+# =============================================================================
+# qmanager_tower_failover — One-Shot Tower Lock Failover Watcher
+# =============================================================================
+# Spawned by lock.sh (detached) after a tower lock operation when failover
+# is enabled. NOT a persistent daemon — runs once and exits.
+#
+# Lifecycle:
+#   1. Writes PID file for singleton tracking
+#   2. Sleeps 20 seconds (allows modem to settle — cell lock disconnects
+#      the modem for 3-5 seconds before reconnecting)
+#   3. Queries AT+QENG="servingcell" via qcmd for real-time signal check
+#   4. Parses RSRP, calculates signal quality percentage
+#   5. If quality < threshold (from config):
+#      a. Clears both LTE and NR-SA tower locks
+#      b. Writes activation flag for the UI
+#   6. Exits
+#
+# The watcher is killed and respawned by lock.sh on each new lock,
+# so only the most recent lock operation is monitored.
+#
+# PID file:  /tmp/qmanager_tower_failover.pid
+# Flag file: /tmp/qmanager_tower_failover (written on activation)
+# Config:    /etc/qmanager/tower_lock.json (read for threshold)
+#
+# Dependencies: qcmd, qlog.sh, tower_lock_mgr.sh
+# Install location: /usr/bin/qmanager_tower_failover
+# =============================================================================
+
+# --- Logging -----------------------------------------------------------------
+. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
+    qlog_init() { :; }
+    qlog_debug() { :; }
+    qlog_info() { :; }
+    qlog_warn() { :; }
+    qlog_error() { :; }
+}
+qlog_init "tower_failover"
+
+# --- Load library ------------------------------------------------------------
+. /usr/lib/qmanager/tower_lock_mgr.sh 2>/dev/null
+
+# --- Configuration -----------------------------------------------------------
+PID_FILE="/tmp/qmanager_tower_failover.pid"
+ACTIVATED_FLAG="/tmp/qmanager_tower_failover"
+SETTLE_DELAY=20  # seconds — cell lock disconnects modem for 3-5s, then needs time to reconnect and measure
+
+# --- Write PID file ----------------------------------------------------------
+echo $$ > "$PID_FILE"
+
+cleanup() {
+    rm -f "$PID_FILE"
+}
+trap cleanup EXIT INT TERM
+
+qlog_info "Tower failover watcher started (PID=$$), waiting ${SETTLE_DELAY}s for modem to settle"
+
+# --- Wait for modem to settle ------------------------------------------------
+sleep "$SETTLE_DELAY"
+
+# --- Read threshold from config ----------------------------------------------
+threshold=$(tower_config_get "threshold")
+[ -z "$threshold" ] && threshold=20
+qlog_debug "Failover threshold: ${threshold}%"
+
+# --- Check signal via AT+QENG="servingcell" ----------------------------------
+# Real-time query (not status.json) for accurate failover decision.
+# Parse RSRP based on network mode.
+
+qeng_result=$(qcmd 'AT+QENG="servingcell"' 2>/dev/null)
+qeng_rc=$?
+
+if [ $qeng_rc -ne 0 ] || [ -z "$qeng_result" ]; then
+    qlog_warn "AT+QENG failed (rc=$qeng_rc) — modem may be unreachable, triggering failover"
+    rsrp=""
+else
+    # Parse RSRP from the response
+    # LTE line format: +QENG: "LTE",<is_tdd>,<MCC>,<MNC>,<cellID>,<PCID>,<earfcn>,<band>,<UL_bw>,<DL_bw>,<TAC>,<RSRP>,<RSRQ>,<RSSI>,<SINR>,...
+    # RSRP is field 12 (0-indexed) in the LTE line
+    # NR5G-SA line format: +QENG: "servingcell",<state>,"NR5G-SA",<duplex>,<MCC>,<MNC>,<cellID>,<PCID>,<TAC>,<ARFCN>,<band>,<NR_DL_bw>,<RSRP>,...
+    # RSRP is field 13 (0-indexed) in the SA line
+
+    rsrp=""
+
+    # Try LTE line first (primary in NSA mode)
+    lte_rsrp=$(printf '%s\n' "$qeng_result" | grep '+QENG:.*"LTE"' | head -1 | \
+        awk -F',' '{print $12}' | tr -d ' \r')
+
+    # Try NR5G-SA line
+    sa_rsrp=$(printf '%s\n' "$qeng_result" | grep '+QENG:.*"NR5G-SA"' | head -1 | \
+        awk -F',' '{print $13}' | tr -d ' \r')
+
+    # Use LTE RSRP if available (primary cell in both LTE and NSA modes)
+    # Fall back to NR-SA RSRP for SA-only mode
+    if [ -n "$lte_rsrp" ] && [ "$lte_rsrp" != "-" ] && [ "$lte_rsrp" -lt 0 ] 2>/dev/null; then
+        rsrp="$lte_rsrp"
+        qlog_debug "Using LTE RSRP: ${rsrp} dBm"
+    elif [ -n "$sa_rsrp" ] && [ "$sa_rsrp" != "-" ] && [ "$sa_rsrp" -lt 0 ] 2>/dev/null; then
+        rsrp="$sa_rsrp"
+        qlog_debug "Using NR-SA RSRP: ${rsrp} dBm"
+    fi
+fi
+
+# --- Calculate signal quality ------------------------------------------------
+if [ -z "$rsrp" ]; then
+    # No valid RSRP — treat as no signal
+    quality=0
+    qlog_warn "No valid RSRP obtained — signal quality = 0%"
+else
+    quality=$(calc_signal_quality "$rsrp")
+    qlog_info "Signal quality: ${quality}% (RSRP=${rsrp} dBm, threshold=${threshold}%)"
+fi
+
+# --- Decision: failover or not -----------------------------------------------
+if [ "$quality" -lt "$threshold" ]; then
+    qlog_warn "TOWER FAILOVER: Signal quality ${quality}% below threshold ${threshold}%, clearing locks"
+
+    # Clear LTE tower lock
+    lte_result=$(tower_unlock_lte 2>/dev/null)
+    case "$lte_result" in
+        *ERROR*) qlog_error "FAILOVER: Failed to clear LTE lock: $lte_result" ;;
+        *) qlog_info "FAILOVER: LTE tower lock cleared" ;;
+    esac
+
+    sleep 0.2
+
+    # Clear NR-SA tower lock
+    nr_result=$(tower_unlock_nr 2>/dev/null)
+    case "$nr_result" in
+        *ERROR*) qlog_error "FAILOVER: Failed to clear NR lock: $nr_result" ;;
+        *) qlog_info "FAILOVER: NR-SA tower lock cleared" ;;
+    esac
+
+    # Update config to reflect disabled state
+    tower_config_update_lte "false" "" "" "" "" "" ""
+    tower_config_update_nr "false"
+
+    # Write activation flag for UI
+    echo "activated" > "$ACTIVATED_FLAG"
+
+    qlog_warn "TOWER FAILOVER COMPLETE: All tower locks cleared"
+else
+    qlog_info "Signal OK after tower lock (quality=${quality}%, threshold=${threshold}%) — no failover needed"
+fi
+
+exit 0

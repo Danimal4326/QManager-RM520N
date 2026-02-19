@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 import {
   Card,
@@ -17,10 +19,118 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TbInfoCircleFilled } from "react-icons/tb";
 import { Input } from "@/components/ui/input";
-import { Toggle } from "@/components/ui/toggle"
+import { Toggle } from "@/components/ui/toggle";
 import { CircleIcon } from "lucide-react";
 
-const ScheduleTowerLockingComponent = () => {
+import type { TowerLockConfig, TowerScheduleConfig } from "@/types/tower-locking";
+import { DAY_LABELS } from "@/types/tower-locking";
+
+interface ScheduleTowerLockingProps {
+  config: TowerLockConfig | null;
+  onScheduleChange: (schedule: TowerScheduleConfig) => Promise<boolean>;
+}
+
+const ScheduleTowerLockingComponent = ({
+  config,
+  onScheduleChange,
+}: ScheduleTowerLockingProps) => {
+  // Local form state
+  const [enabled, setEnabled] = useState(false);
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("22:00");
+  const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
+
+  // Debounce timer ref
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync from config when data loads
+  useEffect(() => {
+    if (config?.schedule) {
+      setEnabled(config.schedule.enabled);
+      setStartTime(config.schedule.start_time);
+      setEndTime(config.schedule.end_time);
+      setDays(config.schedule.days);
+    }
+  }, [config?.schedule]);
+
+  // Debounced save — fires 800ms after last change
+  const debouncedSave = useCallback(
+    (schedule: TowerScheduleConfig) => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+      saveTimerRef.current = setTimeout(() => {
+        onScheduleChange(schedule);
+      }, 800);
+    },
+    [onScheduleChange]
+  );
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Toggle enable/disable — save immediately (not debounced)
+  const handleEnabledChange = (checked: boolean) => {
+    setEnabled(checked);
+    // Cancel any pending debounced save
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    onScheduleChange({
+      enabled: checked,
+      start_time: startTime,
+      end_time: endTime,
+      days,
+    });
+  };
+
+  const handleStartTimeChange = (value: string) => {
+    setStartTime(value);
+    if (enabled) {
+      debouncedSave({
+        enabled,
+        start_time: value,
+        end_time: endTime,
+        days,
+      });
+    }
+  };
+
+  const handleEndTimeChange = (value: string) => {
+    setEndTime(value);
+    if (enabled) {
+      debouncedSave({
+        enabled,
+        start_time: startTime,
+        end_time: value,
+        days,
+      });
+    }
+  };
+
+  const handleDayToggle = (dayIndex: number) => {
+    const newDays = days.includes(dayIndex)
+      ? days.filter((d) => d !== dayIndex)
+      : [...days, dayIndex].sort();
+
+    setDays(newDays);
+    if (enabled) {
+      debouncedSave({
+        enabled,
+        start_time: startTime,
+        end_time: endTime,
+        days: newDays,
+      });
+    }
+  };
+
   return (
     <Card className="@container/card">
       <CardHeader>
@@ -50,8 +160,14 @@ const ScheduleTowerLockingComponent = () => {
               </p>
             </div>
             <div className="flex items-center space-x-2">
-              <Switch id="schedule-locking" />
-              <Label htmlFor="schedule-locking">Enabled</Label>
+              <Switch
+                id="schedule-locking"
+                checked={enabled}
+                onCheckedChange={handleEnabledChange}
+              />
+              <Label htmlFor="schedule-locking">
+                {enabled ? "Enabled" : "Disabled"}
+              </Label>
             </div>
           </div>
           <Separator />
@@ -60,30 +176,42 @@ const ScheduleTowerLockingComponent = () => {
               <Label className="font-semibold text-muted-foreground text-sm">
                 Start Time
               </Label>
-              <Input type="time" className="w-32 h-8" />
+              <Input
+                type="time"
+                className="w-32 h-8"
+                value={startTime}
+                onChange={(e) => handleStartTimeChange(e.target.value)}
+              />
             </div>
             <div className="flex items-center justify-between">
               <Label className="font-semibold text-muted-foreground text-sm">
                 End Time
               </Label>
-              <Input type="time" className="w-32 h-8" />
+              <Input
+                type="time"
+                className="w-32 h-8"
+                value={endTime}
+                onChange={(e) => handleEndTimeChange(e.target.value)}
+              />
             </div>
           </div>
           <Separator />
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
-            {/* Toggle between days of the week */}
             <Label className="font-semibold text-muted-foreground text-sm">
               Repeat On
             </Label>
             <div className="flex flex-wrap gap-2">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <Toggle 
-                aria-label={`toggle-repeat-${day.toLowerCase()}`}
-                key={day} 
-                size="sm" 
-                className="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-blue-500 data-[state=on]:*:[svg]:stroke-blue-500"
-                variant="outline">
-                  <CircleIcon/>
+              {DAY_LABELS.map((day, index) => (
+                <Toggle
+                  aria-label={`toggle-repeat-${day.toLowerCase()}`}
+                  key={day}
+                  size="sm"
+                  className="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-blue-500 data-[state=on]:*:[svg]:stroke-blue-500"
+                  variant="outline"
+                  pressed={days.includes(index)}
+                  onPressedChange={() => handleDayToggle(index)}
+                >
+                  <CircleIcon />
                   {day}
                 </Toggle>
               ))}

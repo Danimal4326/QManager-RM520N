@@ -1,10 +1,17 @@
+"use client";
+
 import React from "react";
 import TowerLockingSettingsComponent from "@/components/cellular/tower-locking/tower-settings";
 import ScheduleTowerLockingComponent from "./schedule-locking";
 import LTELockingComponent from "./lte-locking";
 import NRSALockingComponent from "./nr-sa-locking";
+import { useTowerLocking } from "@/hooks/use-tower-locking";
+import { useModemStatus } from "@/hooks/use-modem-status";
 
 const TowerLockingComponent = () => {
+  const tower = useTowerLocking();
+  const { data: modemData } = useModemStatus();
+
   return (
     <div className="@container/main mx-auto p-2">
       <div className="mb-6">
@@ -17,13 +24,55 @@ const TowerLockingComponent = () => {
       </div>
       <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs">
         <div className="grid grid-cols-1 @xl/main:grid-cols-2 @5xl/main:grid-cols-2 grid-flow-row gap-4 *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs">
-          <TowerLockingSettingsComponent />
-          <LTELockingComponent />
+          <TowerLockingSettingsComponent
+            config={tower.config}
+            failoverState={tower.failoverState}
+            modemData={modemData}
+            isLoading={tower.isLoading}
+            onPersistChange={(persist) => {
+              if (tower.config) {
+                tower.updateSettings(persist, tower.config.failover);
+              }
+            }}
+            onFailoverChange={(enabled) => {
+              if (tower.config) {
+                tower.updateSettings(tower.config.persist, {
+                  ...tower.config.failover,
+                  enabled,
+                });
+              }
+            }}
+            onThresholdChange={(threshold) => {
+              if (tower.config) {
+                tower.updateSettings(tower.config.persist, {
+                  ...tower.config.failover,
+                  threshold,
+                });
+              }
+            }}
+          />
+          <LTELockingComponent
+            config={tower.config}
+            modemState={tower.modemState}
+            isLocking={tower.isLocking}
+            onLock={(cells) => tower.lockLte(cells)}
+            onUnlock={() => tower.unlockLte()}
+          />
         </div>
 
         <div className="grid grid-cols-1 @xl/main:grid-cols-2 @5xl/main:grid-cols-2 grid-flow-row gap-4 *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs">
-          <ScheduleTowerLockingComponent />
-          <NRSALockingComponent />
+          <ScheduleTowerLockingComponent
+            config={tower.config}
+            onScheduleChange={(schedule) => tower.updateSchedule(schedule)}
+          />
+          <NRSALockingComponent
+            config={tower.config}
+            modemState={tower.modemState}
+            networkType={modemData?.network?.type ?? ""}
+            isLocking={tower.isLocking}
+            onLock={(cell) => tower.lockNrSa(cell)}
+            onUnlock={() => tower.unlockNrSa()}
+          />
         </div>
       </div>
     </div>

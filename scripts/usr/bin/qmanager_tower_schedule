@@ -1,0 +1,173 @@
+#!/bin/sh
+# =============================================================================
+# qmanager_tower_schedule — Cron-Callable Tower Lock Apply/Clear
+# =============================================================================
+# Called by cron to automatically apply or clear tower locks on a schedule.
+# Two modes:
+#   qmanager_tower_schedule apply   — Read config, send lock AT commands
+#   qmanager_tower_schedule clear   — Clear all tower locks
+#
+# On "apply", reads /etc/qmanager/tower_lock.json for cell targets and
+# sends the appropriate AT+QNWLOCK commands. Also spawns the failover
+# watcher if failover is enabled.
+#
+# On "clear", sends unlock commands for both LTE and NR-SA, and kills
+# any running failover watcher.
+#
+# Dependencies: qcmd, qlog.sh, tower_lock_mgr.sh
+# Install location: /usr/bin/qmanager_tower_schedule
+# =============================================================================
+
+# --- Logging -----------------------------------------------------------------
+. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
+    qlog_init() { :; }
+    qlog_debug() { :; }
+    qlog_info() { :; }
+    qlog_warn() { :; }
+    qlog_error() { :; }
+}
+qlog_init "tower_schedule"
+
+# --- Load library ------------------------------------------------------------
+. /usr/lib/qmanager/tower_lock_mgr.sh 2>/dev/null
+
+# --- Validate arguments ------------------------------------------------------
+MODE="$1"
+
+if [ "$MODE" != "apply" ] && [ "$MODE" != "clear" ]; then
+    qlog_error "Invalid mode: $MODE (expected 'apply' or 'clear')"
+    exit 1
+fi
+
+# =============================================================================
+# APPLY MODE — Read config and send lock commands
+# =============================================================================
+if [ "$MODE" = "apply" ]; then
+    qlog_info "Schedule APPLY triggered"
+
+    tower_config_init
+    config=$(cat "$TOWER_CONFIG_FILE" 2>/dev/null)
+
+    if [ -z "$config" ]; then
+        qlog_error "Cannot read tower lock config"
+        exit 1
+    fi
+
+    applied_any="false"
+
+    # --- LTE Lock ---
+    # Check if LTE has configured cells (even if currently disabled,
+    # schedule should apply whatever is configured)
+    c1_earfcn=$(printf '%s' "$config" | sed -n '/"cells"/,/\]/p' | \
+        awk -F'}' '{print $1}' | sed -n 's/.*"earfcn"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
+    c1_pci=$(printf '%s' "$config" | sed -n '/"cells"/,/\]/p' | \
+        awk -F'}' '{print $1}' | sed -n 's/.*"pci"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
+
+    c2_earfcn=$(printf '%s' "$config" | sed -n '/"cells"/,/\]/p' | \
+        awk -F'}' '{print $2}' | sed -n 's/.*"earfcn"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
+    c2_pci=$(printf '%s' "$config" | sed -n '/"cells"/,/\]/p' | \
+        awk -F'}' '{print $2}' | sed -n 's/.*"pci"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
+
+    c3_earfcn=$(printf '%s' "$config" | sed -n '/"cells"/,/\]/p' | \
+        awk -F'}' '{print $3}' | sed -n 's/.*"earfcn"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
+    c3_pci=$(printf '%s' "$config" | sed -n '/"cells"/,/\]/p' | \
+        awk -F'}' '{print $3}' | sed -n 's/.*"pci"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
+
+    num_cells=0
+    at_args=""
+    if [ -n "$c1_earfcn" ] && [ -n "$c1_pci" ]; then
+        num_cells=$((num_cells + 1))
+        at_args="$c1_earfcn $c1_pci"
+    fi
+    if [ -n "$c2_earfcn" ] && [ -n "$c2_pci" ]; then
+        num_cells=$((num_cells + 1))
+        at_args="$at_args $c2_earfcn $c2_pci"
+    fi
+    if [ -n "$c3_earfcn" ] && [ -n "$c3_pci" ]; then
+        num_cells=$((num_cells + 1))
+        at_args="$at_args $c3_earfcn $c3_pci"
+    fi
+
+    if [ "$num_cells" -gt 0 ]; then
+        qlog_info "Applying LTE lock: $num_cells cell(s)"
+        result=$(tower_lock_lte "$num_cells" $at_args)
+        case "$result" in
+            *ERROR*)
+                qlog_error "Schedule: LTE lock failed: $result"
+                ;;
+            *)
+                qlog_info "Schedule: LTE lock applied"
+                tower_config_update_lte "true" "$c1_earfcn" "$c1_pci" "$c2_earfcn" "$c2_pci" "$c3_earfcn" "$c3_pci"
+                applied_any="true"
+                ;;
+        esac
+        sleep 0.2
+    fi
+
+    # --- NR-SA Lock ---
+    nr_pci=$(printf '%s' "$config" | sed -n '/"nr_sa"/,/}/p' | grep '"pci"' | head -1 | sed 's/.*: *//;s/[, ]//g')
+    nr_arfcn=$(printf '%s' "$config" | sed -n '/"nr_sa"/,/}/p' | grep '"arfcn"' | head -1 | sed 's/.*: *//;s/[, ]//g')
+    nr_scs=$(printf '%s' "$config" | sed -n '/"nr_sa"/,/}/p' | grep '"scs"' | head -1 | sed 's/.*: *//;s/[, ]//g')
+    nr_band=$(printf '%s' "$config" | sed -n '/"nr_sa"/,/}/p' | grep '"band"' | head -1 | sed 's/.*: *//;s/[, ]//g')
+
+    if [ -n "$nr_pci" ] && [ "$nr_pci" != "null" ] && \
+       [ -n "$nr_arfcn" ] && [ "$nr_arfcn" != "null" ] && \
+       [ -n "$nr_scs" ] && [ "$nr_scs" != "null" ] && \
+       [ -n "$nr_band" ] && [ "$nr_band" != "null" ]; then
+        qlog_info "Applying NR-SA lock: PCI=$nr_pci ARFCN=$nr_arfcn SCS=$nr_scs Band=$nr_band"
+        result=$(tower_lock_nr "$nr_pci" "$nr_arfcn" "$nr_scs" "$nr_band")
+        case "$result" in
+            *ERROR*)
+                qlog_error "Schedule: NR-SA lock failed: $result"
+                ;;
+            *)
+                qlog_info "Schedule: NR-SA lock applied"
+                tower_config_update_nr "true" "$nr_pci" "$nr_arfcn" "$nr_scs" "$nr_band"
+                applied_any="true"
+                ;;
+        esac
+    fi
+
+    # --- Spawn failover watcher if enabled and something was locked ---
+    if [ "$applied_any" = "true" ]; then
+        # Clear previous failover activation
+        rm -f "$TOWER_FAILOVER_FLAG"
+        tower_spawn_failover_watcher >/dev/null
+    fi
+
+    qlog_info "Schedule APPLY complete"
+
+# =============================================================================
+# CLEAR MODE — Unlock all tower locks
+# =============================================================================
+elif [ "$MODE" = "clear" ]; then
+    qlog_info "Schedule CLEAR triggered"
+
+    # Clear LTE lock
+    result=$(tower_unlock_lte 2>/dev/null)
+    case "$result" in
+        *ERROR*) qlog_error "Schedule: Failed to clear LTE lock: $result" ;;
+        *) qlog_info "Schedule: LTE lock cleared" ;;
+    esac
+
+    sleep 0.2
+
+    # Clear NR-SA lock
+    result=$(tower_unlock_nr 2>/dev/null)
+    case "$result" in
+        *ERROR*) qlog_error "Schedule: Failed to clear NR lock: $result" ;;
+        *) qlog_info "Schedule: NR-SA lock cleared" ;;
+    esac
+
+    # Update config to reflect disabled state
+    tower_config_update_lte "false" "" "" "" "" "" ""
+    tower_config_update_nr "false"
+
+    # Kill any running failover watcher
+    tower_kill_failover_watcher
+    rm -f "$TOWER_FAILOVER_FLAG"
+
+    qlog_info "Schedule CLEAR complete"
+fi
+
+exit 0
