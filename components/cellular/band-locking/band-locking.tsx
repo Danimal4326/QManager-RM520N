@@ -53,7 +53,7 @@ const BandLockingComponent = () => {
     currentBands,
     failover,
     isLoading: bandsLoading,
-    isLocking,
+    lockingCategory,
     error,
     lockBands,
     unlockAll,
@@ -104,7 +104,7 @@ const BandLockingComponent = () => {
             }
             onLock={(bands) => lockBands(category, bands)}
             onUnlockAll={() => unlockAll(category, supportedBands[category])}
-            isLocking={isLocking}
+            isLocking={lockingCategory === category}
             isLoading={isPageLoading}
             error={error}
           />

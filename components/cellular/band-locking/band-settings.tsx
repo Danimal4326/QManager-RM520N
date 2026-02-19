@@ -19,7 +19,11 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TbInfoCircleFilled } from "react-icons/tb";
-import { TriangleAlertIcon, CheckCircle2Icon, MinusCircleIcon } from "lucide-react";
+import {
+  TriangleAlertIcon,
+  CheckCircle2Icon,
+  MinusCircleIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { FailoverState } from "@/types/band-locking";
 import type { CarrierComponent } from "@/types/modem-status";
@@ -70,6 +74,26 @@ function getActiveBandDisplay(
   return unique.join(", ");
 }
 
+/**
+ * Extract active E/ARFCNs from carrier_components for a given technology.
+ * Returns comma-separated display string (e.g., "1850, 3050").
+ * Includes duplicates since different carriers can share the same ARFCN.
+ */
+function getActiveArfcnDisplay(
+  components: CarrierComponent[],
+  technology: "LTE" | "NR",
+): string {
+  const arfcns = components
+    .filter((c) => c.technology === technology && c.earfcn != null)
+    .map((c) => c.earfcn as number);
+
+  if (arfcns.length === 0) return "—";
+
+  // Sort numerically, deduplicate
+  const unique = [...new Set(arfcns)].sort((a, b) => a - b);
+  return unique.join(", ");
+}
+
 const BandSettingsComponent = ({
   failover,
   carrierComponents,
@@ -78,7 +102,9 @@ const BandSettingsComponent = ({
 }: BandSettingsProps) => {
   // --- Derive active bands from carrier_components --------------------------
   const activeLte = getActiveBandDisplay(carrierComponents, "LTE");
+  const activeLteArfcn = getActiveArfcnDisplay(carrierComponents, "LTE");
   const activeNr = getActiveBandDisplay(carrierComponents, "NR");
+  const activeNrArfcn = getActiveArfcnDisplay(carrierComponents, "NR");
 
   // --- Failover toggle handler ----------------------------------------------
   const handleFailoverToggle = async (checked: boolean) => {
@@ -151,8 +177,9 @@ const BandSettingsComponent = ({
                 <TooltipContent>
                   <p>
                     When enabled, the device will automatically switch to the
-                    default bands if the locked bands are unavailable after 15
-                    seconds.
+                    default
+                    <br />
+                    bands if the locked bands are unavailable after 15 seconds.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -205,6 +232,21 @@ const BandSettingsComponent = ({
           </div>
           <Separator />
 
+          {/* Active LTE EARFCNs */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Active LTE EARFCNs
+            </p>
+            <div className="flex items-center gap-1.5">
+              {isLoading ? (
+                <Skeleton className="h-4 w-28" />
+              ) : (
+                <p className="text-sm font-semibold">{activeLteArfcn}</p>
+              )}
+            </div>
+          </div>
+          <Separator />
+
           {/* Active NR Bands */}
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-muted-foreground">
@@ -215,6 +257,21 @@ const BandSettingsComponent = ({
                 <Skeleton className="h-4 w-20" />
               ) : (
                 <p className="text-sm font-semibold">{activeNr}</p>
+              )}
+            </div>
+          </div>
+          <Separator />
+
+          {/* Active NR ARFCNs */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Active NR5G ARFCNs
+            </p>
+            <div className="flex items-center gap-1.5">
+              {isLoading ? (
+                <Skeleton className="h-4 w-24" />
+              ) : (
+                <p className="text-sm font-semibold">{activeNrArfcn}</p>
               )}
             </div>
           </div>

@@ -36,8 +36,8 @@ export interface UseBandLockingReturn {
   failover: FailoverState;
   /** True during initial data fetch */
   isLoading: boolean;
-  /** True while a lock/unlock operation is in flight */
-  isLocking: boolean;
+  /** Which band category is currently being locked/unlocked (null = idle) */
+  lockingCategory: BandCategory | null;
   /** Error message from the last operation */
   error: string | null;
   /**
@@ -69,7 +69,7 @@ export function useBandLocking(): UseBandLockingReturn {
     activated: false,
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [isLocking, setIsLocking] = useState(false);
+  const [lockingCategory, setLockingCategory] = useState<BandCategory | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
@@ -130,7 +130,7 @@ export function useBandLocking(): UseBandLockingReturn {
       }
 
       setError(null);
-      setIsLocking(true);
+      setLockingCategory(category);
 
       try {
         const resp = await fetch(`${CGI_BASE}/lock.sh`, {
@@ -165,7 +165,7 @@ export function useBandLocking(): UseBandLockingReturn {
         return false;
       } finally {
         if (mountedRef.current) {
-          setIsLocking(false);
+          setLockingCategory(null);
         }
       }
     },
@@ -240,7 +240,7 @@ export function useBandLocking(): UseBandLockingReturn {
     currentBands,
     failover,
     isLoading,
-    isLocking,
+    lockingCategory,
     error,
     lockBands,
     unlockAll,
