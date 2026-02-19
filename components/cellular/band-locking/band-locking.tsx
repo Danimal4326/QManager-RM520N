@@ -80,7 +80,9 @@ const BandLockingComponent = () => {
   const activeScenarioName = useMemo(() => {
     if (!isScenarioControlled) return "";
     // Check defaults first
-    const defaultMatch = DEFAULT_SCENARIOS.find((s) => s.id === activeScenarioId);
+    const defaultMatch = DEFAULT_SCENARIOS.find(
+      (s) => s.id === activeScenarioId,
+    );
     if (defaultMatch) return defaultMatch.name;
     // Check custom scenarios
     const customMatch = customScenarios.find((s) => s.id === activeScenarioId);
@@ -114,14 +116,14 @@ const BandLockingComponent = () => {
 
       {/* Scenario override banner */}
       {isScenarioControlled && !isPageLoading && (
-        <Alert className="mb-4">
+        <Alert className="mb-4 max-w-xl">
           <InfoIcon className="h-4 w-4" />
           <AlertDescription>
-            Band configuration is managed by the{" "}
-            <span className="font-semibold">{activeScenarioName}</span>{" "}
-            scenario. Switch to{" "}
-            <span className="font-semibold">Balanced</span> on the Connection
-            Scenarios page to enable manual band control.
+            <p>
+              Band configuration is managed by the{" "}
+              <span className="font-semibold">{activeScenarioName}</span>{" "}
+              scenario.
+            </p>
           </AlertDescription>
         </Alert>
       )}
