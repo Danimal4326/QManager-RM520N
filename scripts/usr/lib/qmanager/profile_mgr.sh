@@ -31,27 +31,6 @@ MAX_PROFILES=10
 # Ensure profile directory exists
 mkdir -p "$PROFILE_DIR" 2>/dev/null
 
-# --- JSON Utilities ----------------------------------------------------------
-# DEPRECATED: _json_str_escape, _json_extract, _json_extract_raw are kept for
-# backward compatibility with qmanager_profile_apply until it is migrated.
-
-# Escape a string for safe JSON inclusion (without surrounding quotes).
-_json_str_escape() {
-    printf '%s' "$1" | jq -Rs '.' | sed 's/^"//;s/"$//'
-}
-
-# Extract a top-level string value from a JSON object by key.
-# Args: $1=json_string, $2=key
-_json_extract() {
-    printf '%s' "$1" | jq -r --arg k "$2" '.[$k] // empty' 2>/dev/null
-}
-
-# Extract a top-level numeric/boolean value from a JSON object by key.
-# Args: $1=json_string, $2=key
-_json_extract_raw() {
-    printf '%s' "$1" | jq -r --arg k "$2" '.[$k] // empty | tostring' 2>/dev/null
-}
-
 # --- Profile ID Generation ---------------------------------------------------
 # Format: p_<unix_timestamp>_<3-char-hex>
 # Uses /dev/urandom with hexdump (BusyBox-safe).
@@ -254,7 +233,8 @@ profile_save() {
         local count
         count=$(profile_count)
         if [ "$count" -ge "$MAX_PROFILES" ]; then
-            printf '{"success":false,"error":"limit_reached","detail":"Maximum %d profiles allowed"}\n' "$MAX_PROFILES"
+            jq -n --argjson max "$MAX_PROFILES" \
+                '{"success":false,"error":"limit_reached","detail":("Maximum " + ($max | tostring) + " profiles allowed")}'
             return 1
         fi
         id=$(_generate_profile_id)

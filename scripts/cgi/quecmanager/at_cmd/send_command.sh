@@ -50,8 +50,7 @@ else
 fi
 
 # --- Extract command from JSON ------------------------------------------------
-# Minimal JSON parsing using sed (no jq on OpenWRT by default)
-COMMAND=$(echo "$POST_DATA" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+COMMAND=$(printf '%s' "$POST_DATA" | jq -r '.command // empty')
 
 if [ -z "$COMMAND" ]; then
     qlog_warn "Terminal request with missing command field"

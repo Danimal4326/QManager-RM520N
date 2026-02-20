@@ -158,8 +158,8 @@ if [ "$LOCK_TYPE" = "lte" ]; then
         # Spawn failover watcher
         failover_armed=$(tower_spawn_failover_watcher)
 
-        printf '{"success":true,"type":"lte","action":"lock","num_cells":%s,"failover_armed":%s}\n' \
-            "$num_cells" "$failover_armed"
+        jq -n --argjson nc "$num_cells" --argjson fa "$failover_armed" \
+            '{"success":true,"type":"lte","action":"lock","num_cells":$nc,"failover_armed":$fa}'
 
     elif [ "$ACTION" = "unlock" ]; then
         result=$(tower_unlock_lte)
@@ -246,7 +246,8 @@ elif [ "$LOCK_TYPE" = "nr_sa" ]; then
         # Spawn failover watcher
         failover_armed=$(tower_spawn_failover_watcher)
 
-        printf '{"success":true,"type":"nr_sa","action":"lock","failover_armed":%s}\n' "$failover_armed"
+        jq -n --argjson fa "$failover_armed" \
+            '{"success":true,"type":"nr_sa","action":"lock","failover_armed":$fa}'
 
     elif [ "$ACTION" = "unlock" ]; then
         result=$(tower_unlock_nr)

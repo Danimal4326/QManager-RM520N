@@ -36,4 +36,4 @@ fi
 # Default to balanced if not set or empty
 [ -z "$ACTIVE_ID" ] && ACTIVE_ID="balanced"
 
-printf '{"active_scenario_id":"%s"}\n' "$ACTIVE_ID"
+jq -n --arg id "$ACTIVE_ID" '{"active_scenario_id":$id}'

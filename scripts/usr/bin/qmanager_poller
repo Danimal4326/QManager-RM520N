@@ -516,9 +516,16 @@ append_signal_history() {
     local ts
     ts=$(date +%s)
 
-    printf '{"ts":%d,"lte_rsrp":%s,"lte_rsrq":%s,"lte_sinr":%s,"nr_rsrp":%s,"nr_rsrq":%s,"nr_sinr":%s}\n' \
-        "$ts" "$sig_lte_rsrp" "$sig_lte_rsrq" "$sig_lte_sinr" \
-        "$sig_nr_rsrp" "$sig_nr_rsrq" "$sig_nr_sinr" >> "$SIGNAL_HISTORY_FILE"
+    jq -n -c \
+        --argjson ts "$ts" \
+        --argjson lte_rsrp "$sig_lte_rsrp" \
+        --argjson lte_rsrq "$sig_lte_rsrq" \
+        --argjson lte_sinr "$sig_lte_sinr" \
+        --argjson nr_rsrp "$sig_nr_rsrp" \
+        --argjson nr_rsrq "$sig_nr_rsrq" \
+        --argjson nr_sinr "$sig_nr_sinr" \
+        '{ts:$ts, lte_rsrp:$lte_rsrp, lte_rsrq:$lte_rsrq, lte_sinr:$lte_sinr,
+         nr_rsrp:$nr_rsrp, nr_rsrq:$nr_rsrq, nr_sinr:$nr_sinr}' >> "$SIGNAL_HISTORY_FILE"
 
     # Trim to max entries
     local count
@@ -704,7 +711,7 @@ read_ping_data() {
 
     # Check staleness (ping daemon may have crashed)
     local ping_ts now age
-    ping_ts=$(grep '"timestamp"' "$PING_CACHE" 2>/dev/null | grep -o '[0-9]*')
+    ping_ts=$(jq -r '.timestamp // empty' "$PING_CACHE" 2>/dev/null)
     now=$(date +%s)
 
     if [ -n "$ping_ts" ]; then
@@ -725,31 +732,34 @@ read_ping_data() {
         fi
     fi
 
-    # Extract fields from ping JSON using grep/awk (no jq on BusyBox)
-    # Helper: extract a JSON value by key. Handles numbers, booleans, null, and strings.
-    _pval() {
-        local key="$1"
-        grep "\"${key}\"" "$PING_CACHE" 2>/dev/null | \
-            sed 's/.*: *//; s/,$//' | tr -d ' \r' | head -1
-    }
+    # Extract all scalar fields from ping JSON in one jq call
+    local _pdata
+    _pdata=$(jq -r '[
+        (.reachable // "null" | tostring),
+        (.last_rtt_ms // "null" | tostring),
+        (.avg_rtt_ms // "null" | tostring),
+        (.min_rtt_ms // "null" | tostring),
+        (.max_rtt_ms // "null" | tostring),
+        (.jitter_ms // "null" | tostring),
+        (.packet_loss_pct // 0 | tostring),
+        (.during_recovery // false | tostring),
+        (.interval_sec // 2 | tostring),
+        (.targets[0] // "")
+    ] | @tsv' "$PING_CACHE" 2>/dev/null)
 
-    conn_internet_available=$(_pval "reachable")
-    conn_latency=$(_pval "last_rtt_ms")
-    conn_avg_latency=$(_pval "avg_rtt_ms")
-    conn_min_latency=$(_pval "min_rtt_ms")
-    conn_max_latency=$(_pval "max_rtt_ms")
-    conn_jitter=$(_pval "jitter_ms")
-    conn_packet_loss=$(_pval "packet_loss_pct")
-    conn_during_recovery=$(_pval "during_recovery")
-    conn_history_interval=$(_pval "interval_sec")
+    conn_internet_available=$(printf '%s' "$_pdata" | cut -f1)
+    conn_latency=$(printf '%s' "$_pdata" | cut -f2)
+    conn_avg_latency=$(printf '%s' "$_pdata" | cut -f3)
+    conn_min_latency=$(printf '%s' "$_pdata" | cut -f4)
+    conn_max_latency=$(printf '%s' "$_pdata" | cut -f5)
+    conn_jitter=$(printf '%s' "$_pdata" | cut -f6)
+    conn_packet_loss=$(printf '%s' "$_pdata" | cut -f7)
+    conn_during_recovery=$(printf '%s' "$_pdata" | cut -f8)
+    conn_history_interval=$(printf '%s' "$_pdata" | cut -f9)
+    conn_ping_target=$(printf '%s' "$_pdata" | cut -f10)
 
-    # Extract first target from the targets array
-    conn_ping_target=$(grep '"targets"' "$PING_CACHE" 2>/dev/null | \
-        grep -o '"[0-9.]*"' | head -1 | tr -d '"')
-
-    # Extract the history array (entire line from [ to ])
-    conn_history=$(awk '/"history"/{found=1} found{line=line $0} /\]/{if(found){print line; exit}}' "$PING_CACHE" 2>/dev/null | \
-        sed 's/.*"history": *//' | tr -d ' \r')
+    # Extract history array separately (it's a JSON array)
+    conn_history=$(jq -c '.history // []' "$PING_CACHE" 2>/dev/null)
     [ -z "$conn_history" ] && conn_history="[]"
 
     # Derive connectivity status from ping data + modem state
@@ -785,146 +795,171 @@ write_cache() {
     local timestamp
     timestamp=$(date +%s)
 
-    # Null-safe JSON values
-    local json_lte_earfcn="${lte_earfcn:-null}"
-    local json_lte_pci="${lte_pci:-null}"
-    local json_lte_rsrp="${lte_rsrp:-null}"
-    local json_lte_rsrq="${lte_rsrq:-null}"
-    local json_lte_sinr="${lte_sinr:-null}"
-    local json_lte_rssi="${lte_rssi:-null}"
-    local json_lte_bandwidth="${lte_bandwidth:-null}"
-    local json_lte_ta="${lte_ta:-null}"
-    local json_lte_cell_id="${lte_cell_id:-null}"
-    local json_lte_enodeb_id="${lte_enodeb_id:-null}"
-    local json_lte_sector_id="${lte_sector_id:-null}"
-    local json_lte_tac="${lte_tac:-null}"
-
-    local json_nr_arfcn="${nr_arfcn:-null}"
-    local json_nr_pci="${nr_pci:-null}"
-    local json_nr_rsrp="${nr_rsrp:-null}"
-    local json_nr_rsrq="${nr_rsrq:-null}"
-    local json_nr_sinr="${nr_sinr:-null}"
-    local json_nr_scs="${nr_scs:-null}"
-    local json_nr_ta="${nr_ta:-null}"
-    local json_nr_cell_id="${nr_cell_id:-null}"
-    local json_nr_enodeb_id="${nr_enodeb_id:-null}"
-    local json_nr_sector_id="${nr_sector_id:-null}"
-    local json_nr_tac="${nr_tac:-null}"
-
-    local json_temperature="${t2_temperature:-null}"
-
+    # Build errors array
     local errors_json="[]"
     if [ -n "$errors" ]; then
-        errors_json="[\"${errors}\"]"
+        errors_json=$(jq -n --arg e "$errors" '[$e]')
     fi
 
-    cat > "$CACHE_TMP" << JSONEOF
-{
-  "timestamp": ${timestamp},
-  "system_state": "${system_state}",
-  "modem_reachable": ${modem_reachable},
-  "last_successful_poll": ${timestamp},
-  "errors": ${errors_json},
-  "network": {
-    "type": "${network_type:-LTE}",
-    "sim_slot": ${t2_sim_slot:-1},
-    "carrier": "${t2_carrier}",
-    "service_status": "${service_status}",
-    "ca_active": ${t2_ca_active},
-    "ca_count": ${t2_ca_count},
-    "nr_ca_active": ${t2_nr_ca_active},
-    "nr_ca_count": ${t2_nr_ca_count},
-    "total_bandwidth_mhz": ${t2_total_bandwidth_mhz:-0},
-    "bandwidth_details": "${t2_bandwidth_details}",
-    "carrier_components": ${t2_carrier_components},
-    "apn": "${t2_apn}",
-    "wan_ipv4": "${t2_wan_ipv4}",
-    "wan_ipv6": "${t2_wan_ipv6}",
-    "primary_dns": "${t2_primary_dns}",
-    "secondary_dns": "${t2_secondary_dns}"
-  },
-  "lte": {
-    "state": "${lte_state}",
-    "band": "${lte_band}",
-    "earfcn": ${json_lte_earfcn},
-    "bandwidth": ${json_lte_bandwidth},
-    "pci": ${json_lte_pci},
-    "cell_id": ${json_lte_cell_id},
-    "enodeb_id": ${json_lte_enodeb_id},
-    "sector_id": ${json_lte_sector_id},
-    "tac": ${json_lte_tac},
-    "rsrp": ${json_lte_rsrp},
-    "rsrq": ${json_lte_rsrq},
-    "sinr": ${json_lte_sinr},
-    "rssi": ${json_lte_rssi},
-    "ta": ${json_lte_ta}
-  },
-  "nr": {
-    "state": "${nr_state}",
-    "band": "${nr_band}",
-    "arfcn": ${json_nr_arfcn},
-    "pci": ${json_nr_pci},
-    "cell_id": ${json_nr_cell_id},
-    "enodeb_id": ${json_nr_enodeb_id},
-    "sector_id": ${json_nr_sector_id},
-    "tac": ${json_nr_tac},
-    "rsrp": ${json_nr_rsrp},
-    "rsrq": ${json_nr_rsrq},
-    "sinr": ${json_nr_sinr},
-    "scs": ${json_nr_scs},
-    "ta": ${json_nr_ta}
-  },
-  "signal_per_antenna": {
-    "lte_rsrp": ${sig_lte_rsrp},
-    "lte_rsrq": ${sig_lte_rsrq},
-    "lte_sinr": ${sig_lte_sinr},
-    "nr_rsrp": ${sig_nr_rsrp},
-    "nr_rsrq": ${sig_nr_rsrq},
-    "nr_sinr": ${sig_nr_sinr}
-  },
-  "device": {
-    "temperature": ${json_temperature},
-    "cpu_usage": ${cpu_usage:-0},
-    "memory_used_mb": ${memory_used_mb:-0},
-    "memory_total_mb": ${memory_total_mb:-0},
-    "uptime_seconds": ${uptime_seconds:-0},
-    "conn_uptime_seconds": ${conn_uptime_seconds:-0},
-    "firmware": "${boot_firmware}",
-    "build_date": "${boot_build_date}",
-    "manufacturer": "${boot_manufacturer}",
-    "imei": "${boot_imei}",
-    "imsi": "${boot_imsi}",
-    "iccid": "${boot_iccid}",
-    "phone_number": "${boot_phone_number}",
-    "lte_category": "${boot_lte_category}",
-    "mimo": "${t2_mimo}",
-    "supported_lte_bands": "${boot_supported_lte_bands}",
-    "supported_nsa_nr5g_bands": "${boot_supported_nsa_nr5g_bands}",
-    "supported_sa_nr5g_bands": "${boot_supported_sa_nr5g_bands}"
-  },
-  "traffic": {
-    "rx_bytes_per_sec": ${rx_bytes_per_sec:-0},
-    "tx_bytes_per_sec": ${tx_bytes_per_sec:-0},
-    "total_rx_bytes": ${total_rx_bytes:-0},
-    "total_tx_bytes": ${total_tx_bytes:-0}
-  },
-  "connectivity": {
-    "internet_available": ${conn_internet_available:-null},
-    "status": "${conn_status}",
-    "latency_ms": ${conn_latency:-null},
-    "avg_latency_ms": ${conn_avg_latency:-null},
-    "min_latency_ms": ${conn_min_latency:-null},
-    "max_latency_ms": ${conn_max_latency:-null},
-    "jitter_ms": ${conn_jitter:-null},
-    "packet_loss_pct": ${conn_packet_loss:-0},
-    "ping_target": "${conn_ping_target}",
-    "latency_history": ${conn_history:-[]},
-    "history_interval_sec": ${conn_history_interval:-2},
-    "history_size": ${CONN_HISTORY_SIZE:-60},
-    "during_recovery": ${conn_during_recovery:-false}
-  }
-}
-JSONEOF
+    jq -n \
+        --argjson timestamp "$timestamp" \
+        --arg system_state "$system_state" \
+        --argjson modem_reachable "$modem_reachable" \
+        --argjson errors "$errors_json" \
+        --arg net_type "${network_type:-LTE}" \
+        --argjson sim_slot "${t2_sim_slot:-1}" \
+        --arg carrier "$t2_carrier" \
+        --arg service_status "$service_status" \
+        --argjson ca_active "$t2_ca_active" \
+        --argjson ca_count "$t2_ca_count" \
+        --argjson nr_ca_active "$t2_nr_ca_active" \
+        --argjson nr_ca_count "$t2_nr_ca_count" \
+        --argjson total_bw "${t2_total_bandwidth_mhz:-0}" \
+        --arg bw_details "$t2_bandwidth_details" \
+        --argjson cc "$t2_carrier_components" \
+        --arg apn "$t2_apn" \
+        --arg wan4 "$t2_wan_ipv4" \
+        --arg wan6 "$t2_wan_ipv6" \
+        --arg dns1 "$t2_primary_dns" \
+        --arg dns2 "$t2_secondary_dns" \
+        --arg lte_st "$lte_state" \
+        --arg lte_b "$lte_band" \
+        --argjson lte_earfcn "${lte_earfcn:-null}" \
+        --argjson lte_bw "${lte_bandwidth:-null}" \
+        --argjson lte_pci "${lte_pci:-null}" \
+        --argjson lte_cid "${lte_cell_id:-null}" \
+        --argjson lte_enb "${lte_enodeb_id:-null}" \
+        --argjson lte_sec "${lte_sector_id:-null}" \
+        --argjson lte_tac "${lte_tac:-null}" \
+        --argjson lte_rsrp "${lte_rsrp:-null}" \
+        --argjson lte_rsrq "${lte_rsrq:-null}" \
+        --argjson lte_sinr "${lte_sinr:-null}" \
+        --argjson lte_rssi "${lte_rssi:-null}" \
+        --argjson lte_ta "${lte_ta:-null}" \
+        --arg nr_st "$nr_state" \
+        --arg nr_b "$nr_band" \
+        --argjson nr_arfcn "${nr_arfcn:-null}" \
+        --argjson nr_pci "${nr_pci:-null}" \
+        --argjson nr_cid "${nr_cell_id:-null}" \
+        --argjson nr_enb "${nr_enodeb_id:-null}" \
+        --argjson nr_sec "${nr_sector_id:-null}" \
+        --argjson nr_tac "${nr_tac:-null}" \
+        --argjson nr_rsrp "${nr_rsrp:-null}" \
+        --argjson nr_rsrq "${nr_rsrq:-null}" \
+        --argjson nr_sinr "${nr_sinr:-null}" \
+        --argjson nr_scs "${nr_scs:-null}" \
+        --argjson nr_ta "${nr_ta:-null}" \
+        --argjson slr "$sig_lte_rsrp" \
+        --argjson slq "$sig_lte_rsrq" \
+        --argjson sls "$sig_lte_sinr" \
+        --argjson snr "$sig_nr_rsrp" \
+        --argjson snq "$sig_nr_rsrq" \
+        --argjson sns "$sig_nr_sinr" \
+        --argjson temp "${t2_temperature:-null}" \
+        --argjson cpu "${cpu_usage:-0}" \
+        --argjson mem_used "${memory_used_mb:-0}" \
+        --argjson mem_total "${memory_total_mb:-0}" \
+        --argjson uptime "${uptime_seconds:-0}" \
+        --argjson conn_up "${conn_uptime_seconds:-0}" \
+        --arg firmware "$boot_firmware" \
+        --arg build_date "$boot_build_date" \
+        --arg mfr "$boot_manufacturer" \
+        --arg imei "$boot_imei" \
+        --arg imsi "$boot_imsi" \
+        --arg iccid "$boot_iccid" \
+        --arg phone "$boot_phone_number" \
+        --arg lte_cat "$boot_lte_category" \
+        --arg mimo "$t2_mimo" \
+        --arg sup_lte "$boot_supported_lte_bands" \
+        --arg sup_nsa "$boot_supported_nsa_nr5g_bands" \
+        --arg sup_sa "$boot_supported_sa_nr5g_bands" \
+        --argjson rx_rate "${rx_bytes_per_sec:-0}" \
+        --argjson tx_rate "${tx_bytes_per_sec:-0}" \
+        --argjson rx_total "${total_rx_bytes:-0}" \
+        --argjson tx_total "${total_tx_bytes:-0}" \
+        --argjson inet "${conn_internet_available:-null}" \
+        --arg conn_st "$conn_status" \
+        --argjson lat "${conn_latency:-null}" \
+        --argjson avg_lat "${conn_avg_latency:-null}" \
+        --argjson min_lat "${conn_min_latency:-null}" \
+        --argjson max_lat "${conn_max_latency:-null}" \
+        --argjson jit "${conn_jitter:-null}" \
+        --argjson pkt_loss "${conn_packet_loss:-0}" \
+        --arg ping_tgt "$conn_ping_target" \
+        --argjson lat_hist "${conn_history:-[]}" \
+        --argjson hist_int "${conn_history_interval:-2}" \
+        --argjson hist_size "${CONN_HISTORY_SIZE:-60}" \
+        --argjson during_rec "${conn_during_recovery:-false}" \
+        '{
+            timestamp: $timestamp,
+            system_state: $system_state,
+            modem_reachable: $modem_reachable,
+            last_successful_poll: $timestamp,
+            errors: $errors,
+            network: {
+                type: $net_type,
+                sim_slot: $sim_slot,
+                carrier: $carrier,
+                service_status: $service_status,
+                ca_active: $ca_active,
+                ca_count: $ca_count,
+                nr_ca_active: $nr_ca_active,
+                nr_ca_count: $nr_ca_count,
+                total_bandwidth_mhz: $total_bw,
+                bandwidth_details: $bw_details,
+                carrier_components: $cc,
+                apn: $apn,
+                wan_ipv4: $wan4,
+                wan_ipv6: $wan6,
+                primary_dns: $dns1,
+                secondary_dns: $dns2
+            },
+            lte: {
+                state: $lte_st, band: $lte_b,
+                earfcn: $lte_earfcn, bandwidth: $lte_bw,
+                pci: $lte_pci, cell_id: $lte_cid,
+                enodeb_id: $lte_enb, sector_id: $lte_sec, tac: $lte_tac,
+                rsrp: $lte_rsrp, rsrq: $lte_rsrq,
+                sinr: $lte_sinr, rssi: $lte_rssi, ta: $lte_ta
+            },
+            nr: {
+                state: $nr_st, band: $nr_b,
+                arfcn: $nr_arfcn, pci: $nr_pci,
+                cell_id: $nr_cid, enodeb_id: $nr_enb,
+                sector_id: $nr_sec, tac: $nr_tac,
+                rsrp: $nr_rsrp, rsrq: $nr_rsrq,
+                sinr: $nr_sinr, scs: $nr_scs, ta: $nr_ta
+            },
+            signal_per_antenna: {
+                lte_rsrp: $slr, lte_rsrq: $slq, lte_sinr: $sls,
+                nr_rsrp: $snr, nr_rsrq: $snq, nr_sinr: $sns
+            },
+            device: {
+                temperature: $temp, cpu_usage: $cpu,
+                memory_used_mb: $mem_used, memory_total_mb: $mem_total,
+                uptime_seconds: $uptime, conn_uptime_seconds: $conn_up,
+                firmware: $firmware, build_date: $build_date,
+                manufacturer: $mfr, imei: $imei, imsi: $imsi,
+                iccid: $iccid, phone_number: $phone,
+                lte_category: $lte_cat, mimo: $mimo,
+                supported_lte_bands: $sup_lte,
+                supported_nsa_nr5g_bands: $sup_nsa,
+                supported_sa_nr5g_bands: $sup_sa
+            },
+            traffic: {
+                rx_bytes_per_sec: $rx_rate, tx_bytes_per_sec: $tx_rate,
+                total_rx_bytes: $rx_total, total_tx_bytes: $tx_total
+            },
+            connectivity: {
+                internet_available: $inet, status: $conn_st,
+                latency_ms: $lat, avg_latency_ms: $avg_lat,
+                min_latency_ms: $min_lat, max_latency_ms: $max_lat,
+                jitter_ms: $jit, packet_loss_pct: $pkt_loss,
+                ping_target: $ping_tgt, latency_history: $lat_hist,
+                history_interval_sec: $hist_int, history_size: $hist_size,
+                during_recovery: $during_rec
+            }
+        }' > "$CACHE_TMP"
 
     mv "$CACHE_TMP" "$CACHE_FILE"
 }

@@ -57,7 +57,7 @@ fi
 
 # --- Parse enabled value -----------------------------------------------------
 # Handle both "enabled":true and "enabled":"true" formats
-ENABLED_VAL=$(echo "$POST_DATA" | sed -n 's/.*"enabled"[[:space:]]*:[[:space:]]*\(true\|false\|"true"\|"false"\).*/\1/p' | tr -d '"')
+ENABLED_VAL=$(printf '%s' "$POST_DATA" | jq -r 'if has("enabled") then (.enabled | tostring) else empty end')
 
 if [ -z "$ENABLED_VAL" ]; then
     echo '{"success":false,"error":"no_enabled","detail":"Missing or invalid enabled field (expected true or false)"}'

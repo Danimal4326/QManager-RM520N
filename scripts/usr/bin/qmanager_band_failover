@@ -78,14 +78,11 @@ fi
 # since the modem may be in a degraded state when this fires.
 qlog_warn "FAILOVER: Reverting to all supported bands"
 
-all_lte=$(grep '"supported_lte_bands"' "$STATUS_CACHE" 2>/dev/null | \
-    sed 's/.*: *"//; s/".*//' | tr -d '\r ')
+all_lte=$(jq -r '.supported_lte_bands // empty' "$STATUS_CACHE" 2>/dev/null)
 
-all_nsa=$(grep '"supported_nsa_nr5g_bands"' "$STATUS_CACHE" 2>/dev/null | \
-    sed 's/.*: *"//; s/".*//' | tr -d '\r ')
+all_nsa=$(jq -r '.supported_nsa_nr5g_bands // empty' "$STATUS_CACHE" 2>/dev/null)
 
-all_sa=$(grep '"supported_sa_nr5g_bands"' "$STATUS_CACHE" 2>/dev/null | \
-    sed 's/.*: *"//; s/".*//' | tr -d '\r ')
+all_sa=$(jq -r '.supported_sa_nr5g_bands // empty' "$STATUS_CACHE" 2>/dev/null)
 
 if [ -z "$all_lte" ] && [ -z "$all_nsa" ] && [ -z "$all_sa" ]; then
     qlog_error "FAILOVER: No supported bands found in status cache — cannot revert"

@@ -28,9 +28,7 @@ echo ""
 # --- Serve signal history as JSON array --------------------------------------
 if [ -f "$SIGNAL_HISTORY_FILE" ] && [ -s "$SIGNAL_HISTORY_FILE" ]; then
     # Convert NDJSON (one object per line) to a JSON array
-    echo "["
-    awk 'NR>1{print prev","} {prev=$0} END{if(NR>0) print prev}' "$SIGNAL_HISTORY_FILE"
-    echo "]"
+    jq -s '.' "$SIGNAL_HISTORY_FILE"
 else
     echo "[]"
 fi

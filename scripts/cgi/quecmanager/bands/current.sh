@@ -109,5 +109,6 @@ if [ -f "$FAILOVER_ACTIVATED_FLAG" ]; then
 fi
 
 # --- Response ----------------------------------------------------------------
-printf '{"success":true,"current":{"lte_bands":"%s","nsa_nr5g_bands":"%s","sa_nr5g_bands":"%s"},"failover":{"enabled":%s,"activated":%s}}\n' \
-    "$lte_bands" "$nsa_nr5g_bands" "$sa_nr5g_bands" "$failover_enabled" "$failover_activated"
+jq -n --arg lte "$lte_bands" --arg nsa "$nsa_nr5g_bands" --arg sa "$sa_nr5g_bands" \
+    --argjson fe "$failover_enabled" --argjson fa "$failover_activated" \
+    '{"success":true,"current":{"lte_bands":$lte,"nsa_nr5g_bands":$nsa,"sa_nr5g_bands":$sa},"failover":{"enabled":$fe,"activated":$fa}}'

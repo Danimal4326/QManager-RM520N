@@ -44,7 +44,7 @@ else
 fi
 
 # --- Extract scenario ID from JSON body ---------------------------------------
-SCENARIO_ID=$(echo "$POST_DATA" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+SCENARIO_ID=$(printf '%s' "$POST_DATA" | jq -r '.id // empty')
 
 if [ -z "$SCENARIO_ID" ]; then
     echo '{"success":false,"error":"no_id","detail":"Missing id field in request body"}'
@@ -80,4 +80,4 @@ if [ -f "$ACTIVE_SCENARIO_FILE" ]; then
     fi
 fi
 
-printf '{"success":true,"id":"%s"}\n' "$SCENARIO_ID"
+jq -n --arg id "$SCENARIO_ID" '{"success":true,"id":$id}'

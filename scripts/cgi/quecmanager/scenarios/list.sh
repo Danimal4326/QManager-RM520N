@@ -43,20 +43,9 @@ fi
 # --- Collect custom scenarios from individual JSON files ----------------------
 mkdir -p "$SCENARIOS_DIR" 2>/dev/null
 
-FIRST=1
-printf '{"scenarios":['
+# Slurp all scenario JSON files into an array; build response with jq
+SCENARIOS=$(cat "$SCENARIOS_DIR"/*.json 2>/dev/null | jq -sc '.' 2>/dev/null)
+[ -z "$SCENARIOS" ] && SCENARIOS="[]"
 
-for f in "$SCENARIOS_DIR"/*.json; do
-    [ -f "$f" ] || continue
-    CONTENT=$(cat "$f" 2>/dev/null)
-    [ -z "$CONTENT" ] && continue
-
-    if [ "$FIRST" -eq 1 ]; then
-        FIRST=0
-    else
-        printf ','
-    fi
-    printf '%s' "$CONTENT"
-done
-
-printf '],"active_scenario_id":"%s"}\n' "$ACTIVE_ID"
+jq -n --argjson s "$SCENARIOS" --arg id "$ACTIVE_ID" \
+    '{"scenarios":$s,"active_scenario_id":$id}'

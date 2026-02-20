@@ -25,10 +25,7 @@ echo ""
 # --- Serve events as JSON array ----------------------------------------------
 if [ -f "$EVENTS_FILE" ] && [ -s "$EVENTS_FILE" ]; then
     # Convert NDJSON (one object per line) to a JSON array
-    # awk: print each line with a comma after it, except the last
-    echo "["
-    awk 'NR>1{print prev","} {prev=$0} END{if(NR>0) print prev}' "$EVENTS_FILE"
-    echo "]"
+    jq -s '.' "$EVENTS_FILE"
 else
     echo "[]"
 fi

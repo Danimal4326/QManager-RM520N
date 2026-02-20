@@ -55,7 +55,7 @@ else
 fi
 
 # --- Extract profile ID from JSON body ----------------------------------------
-PROFILE_ID=$(echo "$POST_DATA" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+PROFILE_ID=$(printf '%s' "$POST_DATA" | jq -r '.id // empty')
 
 if [ -z "$PROFILE_ID" ]; then
     echo '{"success":false,"error":"no_id","detail":"Missing id field in request body"}'

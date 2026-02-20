@@ -51,7 +51,7 @@ export interface UseSimProfilesReturn {
 
 /**
  * Flat form data shape that the backend save.sh endpoint expects.
- * This matches the _json_extract keys in profile_mgr.sh's profile_save().
+ * This matches the jq field keys in profile_mgr.sh's profile_save().
  */
 export interface ProfileFormData {
   name: string;

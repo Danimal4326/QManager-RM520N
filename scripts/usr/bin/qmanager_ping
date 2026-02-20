@@ -126,12 +126,9 @@ build_history_json() {
         return
     fi
 
-    awk '
-        BEGIN { printf "[" }
-        NR > 1 { printf "," }
-        /^[0-9]/ { printf "%.1f", $1 }
-        /^null/ { printf "null" }
-        END { printf "]" }
+    jq -Rsc '
+        split("\n") | map(select(length > 0) |
+            if . == "null" then null else tonumber end)
     ' "$HISTORY_FILE"
 }
 
@@ -193,24 +190,38 @@ write_cache() {
         json_jitter="$jitter"
     fi
 
-    cat > "$CACHE_TMP" <<EOF
-{
-  "timestamp": ${timestamp},
-  "targets": ["${PING_TARGET_1}", "${PING_TARGET_2}"],
-  "interval_sec": ${PING_INTERVAL},
-  "last_rtt_ms": ${rtt},
-  "avg_rtt_ms": ${json_avg},
-  "min_rtt_ms": ${json_min},
-  "max_rtt_ms": ${json_max},
-  "jitter_ms": ${json_jitter},
-  "packet_loss_pct": ${loss_pct},
-  "reachable": ${reachable},
-  "streak_success": ${streak_success},
-  "streak_fail": ${streak_fail},
-  "during_recovery": ${during_recovery},
-  "history": ${history_json}
-}
-EOF
+    jq -n \
+        --argjson timestamp "$timestamp" \
+        --arg target1 "$PING_TARGET_1" \
+        --arg target2 "$PING_TARGET_2" \
+        --argjson interval "$PING_INTERVAL" \
+        --argjson last_rtt "$rtt" \
+        --argjson avg_rtt "$json_avg" \
+        --argjson min_rtt "$json_min" \
+        --argjson max_rtt "$json_max" \
+        --argjson jitter_val "$json_jitter" \
+        --argjson loss "$loss_pct" \
+        --argjson reachable "$reachable" \
+        --argjson streak_s "$streak_success" \
+        --argjson streak_f "$streak_fail" \
+        --argjson during_rec "$during_recovery" \
+        --argjson history "$history_json" \
+        '{
+            timestamp: $timestamp,
+            targets: [$target1, $target2],
+            interval_sec: $interval,
+            last_rtt_ms: $last_rtt,
+            avg_rtt_ms: $avg_rtt,
+            min_rtt_ms: $min_rtt,
+            max_rtt_ms: $max_rtt,
+            jitter_ms: $jitter_val,
+            packet_loss_pct: $loss,
+            reachable: $reachable,
+            streak_success: $streak_s,
+            streak_fail: $streak_f,
+            during_recovery: $during_rec,
+            history: $history
+        }' > "$CACHE_TMP"
 
     mv "$CACHE_TMP" "$CACHE_FILE"
 }

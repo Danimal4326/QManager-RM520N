@@ -60,12 +60,8 @@ else
 fi
 
 # --- Parse fields from JSON --------------------------------------------------
-json_field() {
-    echo "$POST_DATA" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p"
-}
-
-SCENARIO_ID=$(json_field "id")
-SCENARIO_NAME=$(json_field "name")
+SCENARIO_ID=$(printf '%s' "$POST_DATA" | jq -r '.id // empty')
+SCENARIO_NAME=$(printf '%s' "$POST_DATA" | jq -r '.name // empty')
 
 # --- Validate name -----------------------------------------------------------
 if [ -z "$SCENARIO_NAME" ]; then
@@ -99,20 +95,15 @@ esac
 if [ "$IS_NEW" -eq 1 ]; then
     COUNT=$(ls "$SCENARIOS_DIR"/*.json 2>/dev/null | wc -l)
     if [ "$COUNT" -ge "$MAX_SCENARIOS" ]; then
-        printf '{"success":false,"error":"limit_reached","detail":"Maximum %d custom scenarios allowed"}\n' "$MAX_SCENARIOS"
+        jq -n --argjson max "$MAX_SCENARIOS" \
+            '{"success":false,"error":"limit_reached","detail":("Maximum " + ($max | tostring) + " custom scenarios allowed")}'
         exit 0
     fi
 fi
 
 # --- Ensure the stored JSON has the correct ID --------------------------------
-# Replace or inject the "id" field in the POST data
-# We use sed to replace any existing "id" value with the canonical one
-SAVE_DATA=$(echo "$POST_DATA" | sed "s/\"id\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/\"id\":\"$SCENARIO_ID\"/")
-
-# If there was no "id" field at all, inject it after the opening brace
-if ! echo "$SAVE_DATA" | grep -q "\"id\""; then
-    SAVE_DATA=$(echo "$SAVE_DATA" | sed "s/^{/{\"id\":\"$SCENARIO_ID\",/")
-fi
+# Use jq to set the id field (handles both insert and replace safely)
+SAVE_DATA=$(printf '%s' "$POST_DATA" | jq --arg id "$SCENARIO_ID" '.id = $id')
 
 # --- Write to file ------------------------------------------------------------
 SCENARIO_FILE="$SCENARIOS_DIR/${SCENARIO_ID}.json"
@@ -123,4 +114,4 @@ if [ $? -ne 0 ]; then
     exit 0
 fi
 
-printf '{"success":true,"id":"%s"}\n' "$SCENARIO_ID"
+jq -n --arg id "$SCENARIO_ID" '{"success":true,"id":$id}'

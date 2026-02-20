@@ -189,7 +189,7 @@ fi
 
 # --- Response (using jq for guaranteed valid JSON) ---------------------------
 # Reconstruct days as JSON array for response
-DAYS_RESP=$(printf '%s' "$DAYS_RAW" | awk -F',' '{printf "["; for(i=1;i<=NF;i++){printf "%s%s",$i,(i<NF?",":""); } printf "]"}')
+DAYS_RESP=$(printf '%s' "$DAYS_RAW" | jq -Rc 'split(",") | map(tonumber)' 2>/dev/null)
 [ -z "$DAYS_RESP" ] && DAYS_RESP="$DAYS_JSON"
 
 jq -n \

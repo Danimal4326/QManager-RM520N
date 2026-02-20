@@ -63,14 +63,7 @@ run_at() {
     strip_at_response "$raw"
 }
 
-# --- Helper: JSON string escape ----------------------------------------------
-_esc() {
-    printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g'
-}
-
-# =============================================================================
-# Query settings (sip-don't-gulp)
-# =============================================================================
+# --- APN array: parse AT response → TSV → jq for safe JSON construction ------
 
 qlog_info "Querying current modem settings for profile form"
 
@@ -79,7 +72,7 @@ cgdcont_resp=$(run_at "AT+CGDCONT?")
 sleep "$CMD_GAP"
 
 # Parse: +CGDCONT: <cid>,"<pdp_type>","<apn>",...
-# Build JSON array of {cid, pdp_type, apn}
+# Build JSON array of {cid, pdp_type, apn} via TSV intermediate + jq
 if [ -n "$cgdcont_resp" ]; then
     apn_array=$(printf '%s' "$cgdcont_resp" | awk -F'"' '
         /\+CGDCONT:/ {
@@ -89,12 +82,14 @@ if [ -n "$cgdcont_resp" ]; then
             pdp = $2
             apn = $4
             if (cid != "") {
-                if (n++) printf ","
-                printf "{\"cid\":%s,\"pdp_type\":\"%s\",\"apn\":\"%s\"}", cid, pdp, apn
+                printf "%s\t%s\t%s\n", cid, pdp, apn
             }
         }
+    ' | jq -Rsc '
+        split("\n") | map(select(length > 0) | split("\t") |
+            {cid: (.[0] | tonumber), pdp_type: .[1], apn: .[2]}
+        )
     ')
-    apn_array="[${apn_array}]"
 else
     apn_array="[]"
 fi
@@ -112,12 +107,7 @@ current_iccid=$(printf '%s' "$iccid_resp" | grep -o '[0-9]\{19,20\}' | head -1)
 # Build and output response JSON
 # =============================================================================
 
-cat << RESP_EOF
-{
-  "apn_profiles": ${apn_array},
-  "imei": "$(_esc "$current_imei")",
-  "iccid": "$(_esc "$current_iccid")"
-}
-RESP_EOF
+jq -n --argjson apns "$apn_array" --arg imei "$current_imei" --arg iccid "$current_iccid" \
+    '{"apn_profiles":$apns,"imei":$imei,"iccid":$iccid}'
 
 qlog_info "Current settings query complete"

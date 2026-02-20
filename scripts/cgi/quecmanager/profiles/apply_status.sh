@@ -41,7 +41,7 @@ fi
 
 # --- Case 2: State file exists — return it -----------------------------------
 # But first, check for orphaned "applying" state (process died mid-apply).
-STATE_STATUS=$(sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$STATE_FILE" | head -1)
+STATE_STATUS=$(jq -r '.status // empty' "$STATE_FILE" 2>/dev/null)
 
 if [ "$STATE_STATUS" = "applying" ]; then
     # Verify the apply process is still alive
@@ -49,14 +49,13 @@ if [ "$STATE_STATUS" = "applying" ]; then
         APPLY_PID=$(cat "$PID_FILE" 2>/dev/null)
         if [ -n "$APPLY_PID" ] && ! kill -0 "$APPLY_PID" 2>/dev/null; then
             # Process died but state says "applying" — correct to "failed"
-            # We do a simple sed replacement rather than rewriting the whole file
-            sed -i 's/"status":"applying"/"status":"failed"/' "$STATE_FILE" 2>/dev/null
+            tmp=$(jq '.status = "failed"' "$STATE_FILE" 2>/dev/null) && printf '%s\n' "$tmp" > "$STATE_FILE"
             rm -f "$PID_FILE"
         fi
     else
         # No PID file but state says "applying" — process exited and cleaned up
         # but never wrote a final state. Mark as failed.
-        sed -i 's/"status":"applying"/"status":"failed"/' "$STATE_FILE" 2>/dev/null
+        tmp=$(jq '.status = "failed"' "$STATE_FILE" 2>/dev/null) && printf '%s\n' "$tmp" > "$STATE_FILE"
     fi
 fi
 

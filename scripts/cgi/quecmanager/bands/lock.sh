@@ -61,12 +61,8 @@ else
 fi
 
 # --- Parse JSON fields -------------------------------------------------------
-json_field() {
-    echo "$POST_DATA" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p"
-}
-
-BAND_TYPE=$(json_field "band_type")
-BANDS=$(json_field "bands")
+BAND_TYPE=$(printf '%s' "$POST_DATA" | jq -r '.band_type // empty')
+BANDS=$(printf '%s' "$POST_DATA" | jq -r '.bands // empty')
 
 # --- Validate inputs ---------------------------------------------------------
 if [ -z "$BAND_TYPE" ]; then
@@ -152,5 +148,5 @@ if [ "$failover_enabled" = "true" ] && [ -x "$FAILOVER_SCRIPT" ]; then
 fi
 
 # --- Response ----------------------------------------------------------------
-printf '{"success":true,"band_type":"%s","bands":"%s","failover_armed":%s}\n' \
-    "$BAND_TYPE" "$BANDS" "$failover_armed"
+jq -n --arg bt "$BAND_TYPE" --arg b "$BANDS" --argjson fa "$failover_armed" \
+    '{"success":true,"band_type":$bt,"bands":$b,"failover_armed":$fa}'

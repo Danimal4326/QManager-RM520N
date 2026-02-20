@@ -60,7 +60,7 @@ else
 fi
 
 # --- Extract profile ID from JSON body ----------------------------------------
-PROFILE_ID=$(echo "$POST_DATA" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+PROFILE_ID=$(printf '%s' "$POST_DATA" | jq -r '.id // empty')
 
 if [ -z "$PROFILE_ID" ]; then
     echo '{"success":false,"error":"no_id","detail":"Missing id field in request body"}'
@@ -120,7 +120,7 @@ if [ -f "$PID_FILE" ]; then
     NEW_PID=$(cat "$PID_FILE" 2>/dev/null)
     if [ -n "$NEW_PID" ] && kill -0 "$NEW_PID" 2>/dev/null; then
         qlog_info "Profile apply started (PID: $NEW_PID)"
-        printf '{"success":true,"status":"applying","pid":%s}\n' "$NEW_PID"
+        jq -n --argjson pid "$NEW_PID" '{"success":true,"status":"applying","pid":$pid}'
     else
         qlog_error "Apply process exited immediately"
         # Check if state file has error info

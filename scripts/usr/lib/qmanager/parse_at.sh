@@ -11,6 +11,8 @@
 
 # --- Sentinel Value Mapping ---------------------------------------------------
 # Maps Quectel sentinel values to JSON null for inactive/unavailable antennas.
+# NOTE: _sig_val and _antenna_to_json_array use printf for performance — these
+# run 3+ times per poll cycle and only handle integers/null (no string escaping).
 _sig_val() {
     case "$1" in
         -32768|"") echo "null" ;;
@@ -504,8 +506,8 @@ parse_ca_info() {
     # --- Bandwidth + per-carrier component parsing ---
     local total_mhz=0
     local details=""
-    local ca_json="["
-    local first_cc=true
+    local cc_tmpfile="/tmp/qmanager_cc_data.tmp"
+    : > "$cc_tmpfile"
     local qca_lines
     qca_lines=$(printf '%s\n' "$raw" | grep '^+QCAINFO:')
 
@@ -616,23 +618,36 @@ parse_ca_info() {
         # cc_sinr may be a float (NR /100 conversion) — validated by awk above
         case "$cc_sinr" in ''|'-') cc_sinr="null" ;; esac
 
-        # --- Append JSON object ---
-        if [ "$first_cc" = true ]; then
-            first_cc=false
-        else
-            ca_json="${ca_json},"
-        fi
-
-        ca_json="${ca_json}{\"type\":\"${cc_type}\",\"technology\":\"${tech}\",\"band\":\"${band_short}\",\"earfcn\":${freq:-null},\"bandwidth_mhz\":${mhz},\"pci\":${cc_pci},\"rsrp\":${cc_rsrp},\"rsrq\":${cc_rsrq},\"rssi\":${cc_rssi},\"sinr\":${cc_sinr}}"
+        # --- Write carrier data for jq processing ---
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$cc_type" "$tech" "$band_short" "${freq:-null}" "$mhz" \
+            "$cc_pci" "$cc_rsrp" "$cc_rsrq" "$cc_rssi" "$cc_sinr" >> "$cc_tmpfile"
 
     done < "$tmpfile"
     rm -f "$tmpfile"
 
-    ca_json="${ca_json}]"
-
     t2_total_bandwidth_mhz=$total_mhz
     t2_bandwidth_details="$details"
-    t2_carrier_components="$ca_json"
+
+    if [ -s "$cc_tmpfile" ]; then
+        t2_carrier_components=$(jq -Rs '
+            split("\n") | map(select(length > 0) | split("\t")) | map({
+                type: .[0],
+                technology: .[1],
+                band: .[2],
+                earfcn: (.[3] | if . == "null" then null else tonumber end),
+                bandwidth_mhz: (.[4] | tonumber),
+                pci: (.[5] | if . == "null" then null else tonumber end),
+                rsrp: (.[6] | if . == "null" then null else tonumber end),
+                rsrq: (.[7] | if . == "null" then null else tonumber end),
+                rssi: (.[8] | if . == "null" then null else tonumber end),
+                sinr: (.[9] | if . == "null" then null else tonumber end)
+            })
+        ' "$cc_tmpfile")
+    else
+        t2_carrier_components="[]"
+    fi
+    rm -f "$cc_tmpfile"
 }
 
 # -----------------------------------------------------------------------------

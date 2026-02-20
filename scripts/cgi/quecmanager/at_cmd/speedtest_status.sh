@@ -39,9 +39,9 @@ fi
 # HELPERS
 # =============================================================================
 
-# Extract "type" field from a JSON line (no jq on OpenWRT)
+# Extract "type" field from a JSON line
 get_type() {
-    echo "$1" | sed -n 's/.*"type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
+    printf '%s' "$1" | jq -r '.type // empty'
 }
 
 # Get the last valid JSON line from the output file.
@@ -82,7 +82,8 @@ if [ -f "$PID_FILE" ]; then
                     upload)    PHASE="upload" ;;
                     *)         PHASE="running" ;;
                 esac
-                printf '{"status":"running","phase":"%s","progress":%s}\n' "$PHASE" "$LAST_LINE"
+                jq -n --arg phase "$PHASE" --argjson progress "$LAST_LINE" \
+                    '{status: "running", phase: $phase, progress: $progress}'
             else
                 # Output file has content but no JSON lines yet (just banners)
                 echo '{"status":"running","phase":"initializing","progress":null}'
@@ -104,7 +105,7 @@ if [ -f "$PID_FILE" ]; then
 
             if [ -n "$RESULT_LINE" ]; then
                 echo "$RESULT_LINE" > "$RESULT_FILE"
-                printf '{"status":"complete","result":%s}\n' "$RESULT_LINE"
+                jq -n --argjson result "$RESULT_LINE" '{status: "complete", result: $result}'
             else
                 # No result line — check if last JSON line gives us anything
                 LAST_LINE=$(get_last_json_line)
@@ -112,7 +113,7 @@ if [ -f "$PID_FILE" ]; then
 
                 if [ "$LINE_TYPE" = "result" ]; then
                     echo "$LAST_LINE" > "$RESULT_FILE"
-                    printf '{"status":"complete","result":%s}\n' "$LAST_LINE"
+                    jq -n --argjson result "$LAST_LINE" '{status: "complete", result: $result}'
                 else
                     echo '{"status":"error","error":"speedtest_failed","detail":"Process exited without producing results"}'
                 fi
@@ -132,7 +133,7 @@ if [ -f "$RESULT_FILE" ] && [ -s "$RESULT_FILE" ]; then
     # Validate it's actually JSON before embedding
     case "$CACHED_RESULT" in
         "{"*)
-            printf '{"status":"complete","result":%s}\n' "$CACHED_RESULT"
+            jq -n --argjson result "$CACHED_RESULT" '{status: "complete", result: $result}'
             ;;
         *)
             # Corrupted cache — discard it

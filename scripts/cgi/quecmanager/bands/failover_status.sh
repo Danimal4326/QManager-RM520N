@@ -57,5 +57,5 @@ if [ -f "$WATCHER_PID_FILE" ]; then
 fi
 
 # --- Response ----------------------------------------------------------------
-printf '{"enabled":%s,"activated":%s,"watcher_running":%s}\n' \
-    "$enabled" "$activated" "$watcher_running"
+jq -n --argjson e "$enabled" --argjson a "$activated" --argjson w "$watcher_running" \
+    '{"enabled":$e,"activated":$a,"watcher_running":$w}'

@@ -141,17 +141,17 @@ if [ -f "$PID_FILE" ]; then
     NEW_PID=$(cat "$PID_FILE" 2>/dev/null)
     if [ -n "$NEW_PID" ] && kill -0 "$NEW_PID" 2>/dev/null; then
         qlog_info "Speedtest started (PID: $NEW_PID, bin: $SPEEDTEST_BIN)"
-        echo "{\"success\":true,\"pid\":$NEW_PID}"
+        jq -n --argjson pid "$NEW_PID" '{success: true, pid: $pid}'
     else
         # Process wrote PID but already died — grab stderr for diagnostics
-        ERR_MSG=$(cat "$ERROR_FILE" 2>/dev/null | head -1 | tr '"' "'")
+        ERR_MSG=$(cat "$ERROR_FILE" 2>/dev/null | head -1)
         qlog_error "Speedtest exited immediately (PID: $NEW_PID): $ERR_MSG"
         rm -f "$PID_FILE" "$OUTPUT_FILE"
-        echo "{\"success\":false,\"error\":\"start_failed\",\"detail\":\"$ERR_MSG\"}"
+        jq -n --arg detail "$ERR_MSG" '{success: false, error: "start_failed", detail: $detail}'
     fi
 else
-    ERR_MSG=$(cat "$ERROR_FILE" 2>/dev/null | head -1 | tr '"' "'")
+    ERR_MSG=$(cat "$ERROR_FILE" 2>/dev/null | head -1)
     qlog_error "Speedtest failed to write PID file: $ERR_MSG"
     rm -f "$OUTPUT_FILE"
-    echo "{\"success\":false,\"error\":\"start_failed\",\"detail\":\"$ERR_MSG\"}"
+    jq -n --arg detail "$ERR_MSG" '{success: false, error: "start_failed", detail: $detail}'
 fi

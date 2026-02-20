@@ -60,12 +60,7 @@ else
 fi
 
 # --- Parse JSON fields from POST body ----------------------------------------
-# Using sed — no jq on BusyBox
-json_field() {
-    echo "$POST_DATA" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p"
-}
-
-SCENARIO_ID=$(json_field "id")
+SCENARIO_ID=$(printf '%s' "$POST_DATA" | jq -r '.id // empty')
 
 if [ -z "$SCENARIO_ID" ]; then
     echo '{"success":false,"error":"no_id","detail":"Missing id field in request body"}'
@@ -115,10 +110,10 @@ case "$SCENARIO_ID" in
         ;;
     custom-*)
         # Custom scenario: read config from POST body
-        AT_MODE=$(json_field "mode")
-        LTE_BANDS=$(json_field "lte_bands")
-        NSA_NR_BANDS=$(json_field "nsa_nr_bands")
-        SA_NR_BANDS=$(json_field "sa_nr_bands")
+        AT_MODE=$(printf '%s' "$POST_DATA" | jq -r '.mode // empty')
+        LTE_BANDS=$(printf '%s' "$POST_DATA" | jq -r '.lte_bands // empty')
+        NSA_NR_BANDS=$(printf '%s' "$POST_DATA" | jq -r '.nsa_nr_bands // empty')
+        SA_NR_BANDS=$(printf '%s' "$POST_DATA" | jq -r '.sa_nr_bands // empty')
 
         if [ -z "$AT_MODE" ]; then
             echo '{"success":false,"error":"no_mode","detail":"Custom scenario requires mode field"}'
@@ -179,9 +174,9 @@ printf '%s' "$SCENARIO_ID" > "$ACTIVE_SCENARIO_FILE"
 # --- Response -----------------------------------------------------------------
 if [ -n "$FAILED" ]; then
     qlog_warn "Scenario activated with partial band lock failure: $FAILED"
-    printf '{"success":true,"id":"%s","warning":"partial_band_lock","detail":"Band lock failed for: %s"}\n' \
-        "$SCENARIO_ID" "$FAILED"
+    jq -n --arg id "$SCENARIO_ID" --arg detail "Band lock failed for: $FAILED" \
+        '{"success":true,"id":$id,"warning":"partial_band_lock","detail":$detail}'
 else
     qlog_info "Scenario activated: $SCENARIO_ID"
-    printf '{"success":true,"id":"%s"}\n' "$SCENARIO_ID"
+    jq -n --arg id "$SCENARIO_ID" '{"success":true,"id":$id}'
 fi

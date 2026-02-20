@@ -135,32 +135,43 @@ steps_skipped=0
 # --- Write the state file (atomic mv) ----------------------------------------
 write_state() {
     local tmp="${STATE_FILE}.tmp"
-    local esc_name
-    esc_name=$(_json_str_escape "$apply_profile_name")
-    local esc_error
+    local err_val
     if [ "$apply_error" = "null" ]; then
-        esc_error="null"
+        err_val="null"
     else
-        esc_error="\"$(_json_str_escape "$apply_error")\""
+        err_val="$apply_error"
     fi
 
-    cat > "$tmp" << STATE_EOF
-{
-  "status": "${apply_status}",
-  "profile_id": "${PROFILE_ID}",
-  "profile_name": "${esc_name}",
-  "started_at": ${apply_started_at},
-  "current_step": ${apply_current_step},
-  "total_steps": ${STEP_COUNT},
-  "steps": [
-    {"name":"apn","status":"${step_status_apn}","detail":"$(_json_str_escape "$step_detail_apn")"},
-    {"name":"ttl_hl","status":"${step_status_ttl_hl}","detail":"$(_json_str_escape "$step_detail_ttl_hl")"},
-    {"name":"imei","status":"${step_status_imei}","detail":"$(_json_str_escape "$step_detail_imei")"}
-  ],
-  "requires_reboot": ${apply_requires_reboot},
-  "error": ${esc_error}
-}
-STATE_EOF
+    jq -n \
+        --arg status       "$apply_status" \
+        --arg profile_id   "$PROFILE_ID" \
+        --arg profile_name "$apply_profile_name" \
+        --argjson started  "$apply_started_at" \
+        --argjson cur_step "$apply_current_step" \
+        --argjson total    "$STEP_COUNT" \
+        --arg s1_status    "$step_status_apn" \
+        --arg s1_detail    "$step_detail_apn" \
+        --arg s2_status    "$step_status_ttl_hl" \
+        --arg s2_detail    "$step_detail_ttl_hl" \
+        --arg s3_status    "$step_status_imei" \
+        --arg s3_detail    "$step_detail_imei" \
+        --argjson reboot   "$apply_requires_reboot" \
+        --arg err          "$err_val" \
+        '{
+            status: $status,
+            profile_id: $profile_id,
+            profile_name: $profile_name,
+            started_at: $started,
+            current_step: $cur_step,
+            total_steps: $total,
+            steps: [
+                {name: "apn",    status: $s1_status, detail: $s1_detail},
+                {name: "ttl_hl", status: $s2_status, detail: $s2_detail},
+                {name: "imei",   status: $s3_status, detail: $s3_detail}
+            ],
+            requires_reboot: $reboot,
+            error: (if $err == "null" then null else $err end)
+        }' > "$tmp"
     mv "$tmp" "$STATE_FILE"
 }
 
@@ -223,29 +234,21 @@ if [ -z "$profile_json" ]; then
     exit 1
 fi
 
-# Extract settings from the profile JSON
-# NOTE: _json_extract returns the FIRST match per key.
-# "name" appears twice (profile name + APN name), so we use a special
-# extraction for the APN name: collapse JSON to one line, then use
-# context-aware sed to find "name" inside the "apn" block.
-p_name=$(_json_extract "$profile_json" "name")
+# Extract settings from the profile JSON using jq with proper nested paths
+p_name=$(printf '%s' "$profile_json" | jq -r '.name // empty')
 apply_profile_name="$p_name"
 
-# Collapse JSON to single line for context-aware nested extraction
-_flat_json=$(printf '%s' "$profile_json" | tr -d '\n\r')
-p_apn_name=$(printf '%s' "$_flat_json" | sed -n 's/.*"apn"[^}]*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-
-# These keys are unique (no duplicates) — _json_extract works fine
-p_apn_cid=$(_json_extract_raw "$profile_json" "cid")
-p_pdp_type=$(_json_extract "$profile_json" "pdp_type")
-p_imei=$(_json_extract "$profile_json" "imei")
-p_ttl=$(_json_extract_raw "$profile_json" "ttl")
-p_hl=$(_json_extract_raw "$profile_json" "hl")
+p_apn_name=$(printf '%s' "$profile_json" | jq -r '.settings.apn.name // empty')
+p_apn_cid=$(printf '%s' "$profile_json" | jq -r '.settings.apn.cid // empty | tostring')
+p_pdp_type=$(printf '%s' "$profile_json" | jq -r '.settings.apn.pdp_type // empty')
+p_imei=$(printf '%s' "$profile_json" | jq -r '.settings.imei // empty')
+p_ttl=$(printf '%s' "$profile_json" | jq -r '.settings.ttl // empty | tostring')
+p_hl=$(printf '%s' "$profile_json" | jq -r '.settings.hl // empty | tostring')
 
 # Defaults
-[ -z "$p_apn_cid" ] || [ "$p_apn_cid" = "null" ] && p_apn_cid=1
-[ -z "$p_ttl" ] || [ "$p_ttl" = "null" ] && p_ttl=0
-[ -z "$p_hl" ] || [ "$p_hl" = "null" ] && p_hl=0
+[ -z "$p_apn_cid" ] && p_apn_cid=1
+[ -z "$p_ttl" ] && p_ttl=0
+[ -z "$p_hl" ] && p_hl=0
 
 qlog_info "Applying profile: $p_name (APN=$p_apn_name, CID=$p_apn_cid)"
 
