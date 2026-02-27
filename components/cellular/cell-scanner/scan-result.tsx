@@ -221,7 +221,7 @@ const createColumns = (
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
             <DropdownMenuItem onClick={() => onLockCell?.(cellData)}>
-              <LockIcon className="mr-2 h-4 w-4" />
+              <LockIcon className="h-4 w-4" />
               Lock Cell
             </DropdownMenuItem>
           </DropdownMenuContent>

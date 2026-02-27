@@ -33,8 +33,7 @@ import { useNeighbourScanner } from "@/hooks/use-neighbour-scanner";
 
 // --- CSV Export Utility ------------------------------------------------------
 function downloadCSV(results: NeighbourCellResult[]) {
-  const header =
-    "Network,Cell Type,Frequency,PCI,Signal (dBm),RSRQ,RSSI,SINR";
+  const header = "Network,Cell Type,Frequency,PCI,Signal (dBm),RSRQ,RSSI,SINR";
   const rows = results.map((r) =>
     [
       r.networkType,
@@ -234,8 +233,8 @@ const NeighbourCellScanner = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Lock to Cell?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will lock the modem to the following cell. The modem will only
-              connect to this specific cell until the lock is removed.
+              This will lock the modem to the following cell. The modem will
+              only connect to this specific cell until the lock is removed.
               {lockTarget && (
                 <span className="mt-2 block font-mono text-xs">
                   {lockTarget.networkType} — PCI {lockTarget.pci}, EARFCN{" "}
@@ -249,7 +248,7 @@ const NeighbourCellScanner = () => {
             <AlertDialogAction onClick={confirmLockCell} disabled={isLocking}>
               {isLocking ? (
                 <>
-                  <LoaderCircleIcon className="mr-1 h-4 w-4 animate-spin" />
+                  <LoaderCircleIcon className="h-4 w-4 animate-spin" />
                   Locking...
                 </>
               ) : (
