@@ -2,14 +2,19 @@
 # =============================================================================
 # qmanager_tower_failover — Persistent Tower Lock Failover Daemon
 # =============================================================================
-# Spawned by lock.sh (detached) after a tower lock operation when failover
-# is enabled. Runs as a persistent daemon, continuously monitoring signal
-# quality and automatically clearing locks if the signal degrades.
+# Spawned by lock.sh or settings.sh (detached) after a tower lock operation
+# when failover is enabled. Runs as a persistent daemon, continuously
+# monitoring signal quality and automatically clearing locks if the signal
+# degrades.
+#
+# Signal data is read from the poller's cached JSON at /tmp/qmanager_status.json
+# (updated every 2s by qmanager_poller). This avoids AT command contention
+# and duplicated parsing logic.
 #
 # Lifecycle:
 #   1. Writes PID file for singleton tracking
 #   2. Initial settle delay (allows modem to apply lock and reconnect)
-#   3. Polling loop: queries AT+QENG="servingcell" every POLL_INTERVAL seconds
+#   3. Polling loop: reads RSRP from status cache every POLL_INTERVAL seconds
 #   4. Tracks consecutive bad readings (signal below threshold)
 #   5. If BAD_CHECK_LIMIT consecutive bad readings occur:
 #      a. Clears both LTE and NR-SA tower locks
@@ -19,7 +24,8 @@
 #   6. Periodically validates locks are still active; exits if disabled externally
 #
 # Resilience:
-#   - AT command contention (modem_busy) does NOT count toward failover
+#   - Missing/stale status cache does NOT count toward failover
+#   - Modem unreachable (from poller) does NOT count toward failover
 #   - Only verified bad signal readings increment the failure counter
 #   - Any good reading resets the counter to 0
 #   - Graceful SIGTERM handling (no false failover on kill)
@@ -30,8 +36,9 @@
 # PID file:  /tmp/qmanager_tower_failover.pid
 # Flag file: /tmp/qmanager_tower_failover (written on activation)
 # Config:    /etc/qmanager/tower_lock.json (read for threshold)
+# Cache:     /tmp/qmanager_status.json (read-only, for signal data)
 #
-# Dependencies: qcmd, qlog.sh, tower_lock_mgr.sh
+# Dependencies: qlog.sh, tower_lock_mgr.sh, jq
 # Install location: /usr/bin/qmanager_tower_failover
 # =============================================================================
 
@@ -51,6 +58,7 @@ qlog_init "tower_failover"
 # --- Configuration -----------------------------------------------------------
 PID_FILE="/tmp/qmanager_tower_failover.pid"
 ACTIVATED_FLAG="/tmp/qmanager_tower_failover"
+STATUS_CACHE="/tmp/qmanager_status.json"
 SETTLE_DELAY=20       # seconds — cell lock disconnects modem for 3-5s, then reconnect
 POLL_INTERVAL=20      # seconds between signal checks
 BAD_CHECK_LIMIT=3     # consecutive bad readings before failover triggers
@@ -119,16 +127,10 @@ while true; do
         fi
     fi
 
-    # --- Query signal via AT+QENG="servingcell" ------------------------------
-    qeng_result=$(qcmd 'AT+QENG="servingcell"' 2>/dev/null)
-    qeng_rc=$?
+    # --- Read signal from poller cache ---------------------------------------
+    if [ ! -f "$STATUS_CACHE" ]; then
+        qlog_debug "Status cache not found — poller may not be running, skipping cycle"
 
-    if [ $qeng_rc -ne 0 ] || [ -z "$qeng_result" ]; then
-        # AT command failed — modem busy or unreachable
-        # Do NOT count toward failover; just skip this cycle
-        qlog_debug "AT+QENG skipped (rc=$qeng_rc) — modem busy, will retry next cycle"
-
-        # Interruptible sleep
         poll_count=0
         while [ "$poll_count" -lt "$POLL_INTERVAL" ]; do
             [ "$should_exit" -eq 1 ] && exit 0
@@ -138,68 +140,35 @@ while true; do
         continue
     fi
 
-    # --- Check connection state ----------------------------------------------
-    # If modem reports SEARCH, LIMSRV, or NOCONN, treat as no signal
-    conn_state=""
-    state_line=$(printf '%s\n' "$qeng_result" | grep '+QENG: "servingcell"' | head -1)
-    if [ -n "$state_line" ]; then
-        conn_state=$(printf '%s' "$state_line" | awk -F',' '{print $2}' | tr -d '" \r')
+    modem_ok=$(jq -r '.modem_reachable // false' "$STATUS_CACHE" 2>/dev/null)
+    if [ "$modem_ok" != "true" ]; then
+        qlog_debug "Modem unreachable (from poller cache) — skipping cycle"
+
+        poll_count=0
+        while [ "$poll_count" -lt "$POLL_INTERVAL" ]; do
+            [ "$should_exit" -eq 1 ] && exit 0
+            sleep 1
+            poll_count=$((poll_count + 1))
+        done
+        continue
     fi
 
-    no_service=0
-    case "$conn_state" in
-        SEARCH|NOCONN|LIMSRV)
-            qlog_warn "Modem reports connection state: $conn_state"
-            no_service=1
-            ;;
+    # Read RSRP — prefer LTE, fall back to NR
+    rsrp=$(jq -r '.lte.rsrp // empty' "$STATUS_CACHE" 2>/dev/null)
+    if [ -z "$rsrp" ]; then
+        rsrp=$(jq -r '.nr.rsrp // empty' "$STATUS_CACHE" 2>/dev/null)
+    fi
+
+    # Validate RSRP is a negative number (all valid RSRP values are < 0)
+    case "$rsrp" in
+        -[0-9]*) ;; # valid
+        *) rsrp="" ;; # invalid — treat as no signal
     esac
-
-    # --- Parse RSRP ----------------------------------------------------------
-    # Three distinct AT response formats (field indices are awk 1-indexed):
-    #
-    # NSA/EN-DC: LTE data on SEPARATE line (no "servingcell" prefix)
-    #   +QENG: "LTE",<is_tdd>,<MCC>,<MNC>,<cellID>,<PCID>,<earfcn>,<band>,<UL_bw>,<DL_bw>,<TAC>,<RSRP>,...
-    #   Fields:  1     2       3     4     5        6      7        8      9      10     11   12
-    #
-    # LTE-only: combined servingcell+LTE on ONE line
-    #   +QENG: "servingcell",<state>,"LTE",<is_tdd>,<MCC>,<MNC>,<cellID>,<PCID>,<earfcn>,<band>,<UL_bw>,<DL_bw>,<TAC>,<RSRP>,...
-    #   Fields:  1            2       3     4        5     6     7        8      9        10     11     12     13   14
-    #
-    # NR5G-SA: on servingcell line
-    #   +QENG: "servingcell",<state>,"NR5G-SA",<duplex>,<MCC>,<MNC>,<cellID>,<PCID>,<TAC>,<ARFCN>,<band>,<NR_DL_bw>,<RSRP>,...
-    #   Fields:  1            2       3         4        5     6     7        8      9     10      11     12         13
-
-    rsrp=""
-
-    if [ "$no_service" -eq 0 ]; then
-        # Detect mode: NSA has a separate LTE line (not on the "servingcell" line)
-        local lte_separate lte_combined sa_line
-        lte_separate=$(printf '%s\n' "$qeng_result" | grep '+QENG:' | grep '"LTE"' | grep -v '"servingcell"' | head -1)
-        lte_combined=$(printf '%s\n' "$qeng_result" | grep '+QENG:.*"servingcell".*"LTE"' | head -1)
-        sa_line=$(printf '%s\n' "$qeng_result" | grep '+QENG:.*"NR5G-SA"' | head -1)
-
-        if [ -n "$lte_separate" ]; then
-            # NSA/EN-DC: RSRP is field 12
-            rsrp=$(printf '%s' "$lte_separate" | awk -F',' '{print $12}' | tr -d ' \r')
-        elif [ -n "$lte_combined" ]; then
-            # LTE-only: RSRP is field 14
-            rsrp=$(printf '%s' "$lte_combined" | awk -F',' '{print $14}' | tr -d ' \r')
-        elif [ -n "$sa_line" ]; then
-            # NR5G-SA: RSRP is field 13
-            rsrp=$(printf '%s' "$sa_line" | awk -F',' '{print $13}' | tr -d ' \r')
-        fi
-
-        # Validate RSRP is a negative number (all valid RSRP values are < 0)
-        case "$rsrp" in
-            -[0-9]*) ;; # valid
-            *) rsrp="" ;; # invalid — treat as no signal
-        esac
-    fi
 
     # --- Calculate signal quality --------------------------------------------
     if [ -z "$rsrp" ]; then
         quality=0
-        qlog_debug "No valid RSRP — signal quality = 0%"
+        qlog_debug "No valid RSRP in cache — signal quality = 0%"
     else
         quality=$(calc_signal_quality "$rsrp")
     fi
