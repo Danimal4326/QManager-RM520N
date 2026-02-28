@@ -185,9 +185,15 @@ if [ "$LOCK_TYPE" = "lte" ]; then
         # Update config — preserve ALL cell data, just set enabled=false
         tower_config_update '.lte.enabled = false'
 
-        # Kill failover watcher
-        tower_kill_failover_watcher
-        rm -f "$TOWER_FAILOVER_FLAG"
+        # Stop failover if no other lock remains active
+        nr_active=$(tower_config_get ".nr_sa.enabled")
+        if [ "$nr_active" != "true" ]; then
+            tower_kill_failover_watcher
+            rm -f "$TOWER_FAILOVER_FLAG"
+            tower_config_update '.failover.enabled = false'
+            /etc/init.d/qmanager_tower_failover disable 2>/dev/null
+            qlog_info "No active locks — failover stopped and disabled"
+        fi
 
         echo '{"success":true,"type":"lte","action":"unlock"}'
     else
@@ -274,9 +280,15 @@ elif [ "$LOCK_TYPE" = "nr_sa" ]; then
         # Update config — preserve ALL NR params, just set enabled=false
         tower_config_update '.nr_sa.enabled = false'
 
-        # Kill failover watcher
-        tower_kill_failover_watcher
-        rm -f "$TOWER_FAILOVER_FLAG"
+        # Stop failover if no other lock remains active
+        lte_active=$(tower_config_get ".lte.enabled")
+        if [ "$lte_active" != "true" ]; then
+            tower_kill_failover_watcher
+            rm -f "$TOWER_FAILOVER_FLAG"
+            tower_config_update '.failover.enabled = false'
+            /etc/init.d/qmanager_tower_failover disable 2>/dev/null
+            qlog_info "No active locks — failover stopped and disabled"
+        fi
 
         echo '{"success":true,"type":"nr_sa","action":"unlock"}'
     else
