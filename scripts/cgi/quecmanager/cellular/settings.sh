@@ -252,10 +252,12 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         esac
     fi
 
-    # --- Apply in safe order: nr5g_mode, mode_pref, cfun, sim_slot (disruptive last) ---
+    # --- Apply in safe order: nr5g_mode, mode_pref, sim_slot (w/ CFUN procedure), cfun ---
     errors=""
     applied=""
+    sim_cfun_restored=""
 
+    # 1. NR5G mode (least disruptive, NVM write)
     if [ "$NR5G_MODE" != "unset" ]; then
         result=$(qcmd "AT+QNWPREFCFG=\"nr5g_disable_mode\",$NR5G_MODE" 2>/dev/null)
         case "$result" in
@@ -271,6 +273,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         sleep "$CMD_GAP"
     fi
 
+    # 2. Network mode
     if [ "$MODE_PREF" != "unset" ]; then
         result=$(qcmd "AT+QNWPREFCFG=\"mode_pref\",$MODE_PREF" 2>/dev/null)
         case "$result" in
@@ -286,33 +289,70 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         sleep "$CMD_GAP"
     fi
 
-    if [ "$CFUN" != "unset" ]; then
-        result=$(qcmd "AT+CFUN=$CFUN" 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "Failed to set CFUN=$CFUN: $result"
-                errors="${errors}cfun,"
-                ;;
-            *)
-                qlog_info "Set CFUN=$CFUN"
-                applied="${applied}cfun,"
-                ;;
-        esac
-        sleep "$CMD_GAP"
+    # 3. SIM slot change (requires CFUN=0 -> sleep 2 -> QUIMSLOT -> sleep 2 -> CFUN=1)
+    if [ "$SIM_SLOT" != "unset" ]; then
+        qlog_info "SIM slot change: starting CFUN=0 -> QUIMSLOT=$SIM_SLOT -> CFUN=1 procedure"
+        sim_proceed="1"
+
+        # Step 1: Switch to minimum functionality
+        result=$(qcmd "AT+CFUN=0" 2>/dev/null)
+        case "$result" in *ERROR*) sim_proceed="" ;; esac
+
+        if [ -z "$sim_proceed" ]; then
+            qlog_error "SIM procedure: CFUN=0 failed: $result"
+            errors="${errors}sim_slot,"
+        else
+            qlog_info "SIM procedure: CFUN=0 OK"
+            sleep 2
+
+            # Step 2: Change SIM slot
+            result=$(qcmd "AT+QUIMSLOT=$SIM_SLOT" 2>/dev/null)
+            case "$result" in
+                *ERROR*)
+                    qlog_error "SIM procedure: QUIMSLOT=$SIM_SLOT failed: $result"
+                    errors="${errors}sim_slot,"
+                    ;;
+                *)
+                    qlog_info "SIM procedure: QUIMSLOT=$SIM_SLOT OK"
+                    applied="${applied}sim_slot,"
+                    ;;
+            esac
+            sleep 2
+
+            # Step 3: Restore full functionality
+            result=$(qcmd "AT+CFUN=1" 2>/dev/null)
+            case "$result" in
+                *ERROR*)
+                    qlog_error "SIM procedure: CFUN=1 restore failed: $result"
+                    ;;
+                *)
+                    qlog_info "SIM procedure: CFUN=1 restored"
+                    sim_cfun_restored="1"
+                    ;;
+            esac
+        fi
     fi
 
-    if [ "$SIM_SLOT" != "unset" ]; then
-        result=$(qcmd "AT+QUIMSLOT=$SIM_SLOT" 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "Failed to set QUIMSLOT=$SIM_SLOT: $result"
-                errors="${errors}sim_slot,"
-                ;;
-            *)
-                qlog_info "Set QUIMSLOT=$SIM_SLOT"
-                applied="${applied}sim_slot,"
-                ;;
-        esac
+    # 4. CFUN change (skip if SIM procedure already restored to user's desired value)
+    if [ "$CFUN" != "unset" ]; then
+        if [ -n "$sim_cfun_restored" ] && [ "$CFUN" = "1" ]; then
+            # SIM slot procedure already set CFUN=1
+            qlog_info "CFUN=1 already applied by SIM slot procedure"
+            applied="${applied}cfun,"
+        else
+            sleep "$CMD_GAP"
+            result=$(qcmd "AT+CFUN=$CFUN" 2>/dev/null)
+            case "$result" in
+                *ERROR*)
+                    qlog_error "Failed to set CFUN=$CFUN: $result"
+                    errors="${errors}cfun,"
+                    ;;
+                *)
+                    qlog_info "Set CFUN=$CFUN"
+                    applied="${applied}cfun,"
+                    ;;
+            esac
+        fi
     fi
 
     # --- Response ---

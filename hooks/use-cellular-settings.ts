@@ -63,8 +63,8 @@ export function useCellularSettings(): UseCellularSettingsReturn {
   // ---------------------------------------------------------------------------
   // Fetch settings + AMBR
   // ---------------------------------------------------------------------------
-  const fetchSettings = useCallback(async () => {
-    setIsLoading(true);
+  const fetchSettings = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError(null);
 
     try {
@@ -91,7 +91,7 @@ export function useCellularSettings(): UseCellularSettingsReturn {
           : "Failed to fetch cellular settings"
       );
     } finally {
-      if (mountedRef.current) {
+      if (mountedRef.current && !silent) {
         setIsLoading(false);
       }
     }
@@ -132,15 +132,25 @@ export function useCellularSettings(): UseCellularSettingsReturn {
           return false;
         }
 
-        // Wait for modem to settle after sensitive changes
-        const hasSensitiveChange =
-          changes.sim_slot !== undefined || changes.cfun !== undefined;
-        if (hasSensitiveChange) {
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+        // Wait for modem to recover after disruptive changes.
+        // SIM slot: backend already takes ~4s (CFUN=0, sleep 2, QUIMSLOT, sleep 2,
+        // CFUN=1), then modem needs ~8s more to re-register on the network.
+        // CFUN / mode_pref: executes instantly but network recovery takes ~3-5s.
+        let recoveryMs = 0;
+        if (changes.sim_slot !== undefined) {
+          recoveryMs = 8000;
+        } else if (
+          changes.cfun !== undefined ||
+          changes.mode_pref !== undefined
+        ) {
+          recoveryMs = 3000;
+        }
+        if (recoveryMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, recoveryMs));
         }
 
-        // Re-fetch to show actual modem state
-        await fetchSettings();
+        // Re-fetch to show actual modem state (silent — no skeleton)
+        await fetchSettings(true);
         return true;
       } catch (err) {
         if (!mountedRef.current) return false;
