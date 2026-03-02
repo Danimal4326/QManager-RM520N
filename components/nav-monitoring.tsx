@@ -36,13 +36,14 @@ export function NavMonitoring({
     }[]
   }[]
 }) {
-  const pathname = usePathname()
+  const rawPathname = usePathname()
+  const pathname = rawPathname.endsWith('/') && rawPathname !== '/' ? rawPathname.slice(0, -1) : rawPathname
   const [openItems, setOpenItems] = React.useState<Record<string, boolean>>({})
 
   React.useEffect(() => {
     const states: Record<string, boolean> = {}
     monitoring.forEach((item) => {
-      states[item.title] = pathname === item.url || (!!item.items?.length && pathname.startsWith(item.url + "/"))
+      states[item.title] = pathname === item.url || (!!item.items?.length && item.items.some(sub => pathname === sub.url || pathname.startsWith(sub.url + "/")))
     })
     setOpenItems(states)
   }, [pathname, monitoring])
@@ -54,7 +55,7 @@ export function NavMonitoring({
       </SidebarGroupLabel>
       <SidebarMenu>
         {monitoring.map((item) => {
-          const isParentOrChildActive = pathname === item.url || (!!item.items?.length && pathname.startsWith(item.url + "/"))
+          const isParentOrChildActive = pathname === item.url || (!!item.items?.length && item.items.some(sub => pathname === sub.url || pathname.startsWith(sub.url + "/")))
 
           return (
           <Collapsible

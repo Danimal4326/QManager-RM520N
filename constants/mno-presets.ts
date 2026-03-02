@@ -71,6 +71,13 @@ export const MNO_PRESETS: MnoPreset[] = [
     ttl: 0,
     hl: 0,
   },
+  {
+    id: "tmo_home",
+    label: "T-Mobile Home Internet",
+    apn_name: "fbb.home",
+    ttl: 0,
+    hl: 0,
+  },
 ];
 
 /**

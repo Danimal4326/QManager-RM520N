@@ -35,7 +35,8 @@ export function NavMain({
     }[];
   }[];
 }) {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = rawPathname.endsWith('/') && rawPathname !== '/' ? rawPathname.slice(0, -1) : rawPathname;
   const [openItems, setOpenItems] = React.useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
