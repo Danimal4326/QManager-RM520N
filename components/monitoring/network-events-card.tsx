@@ -17,6 +17,7 @@ import {
   Radio,
   Signal,
   AlertCircle,
+  BellOff,
   Clock,
   ArrowUpDown,
   ListFilter,
@@ -48,10 +49,7 @@ import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 
 import { useRecentActivities } from "@/hooks/use-recent-activities";
-import {
-  EVENT_LABELS,
-  EVENT_TAB_CATEGORIES,
-} from "@/constants/network-events";
+import { EVENT_LABELS, EVENT_TAB_CATEGORIES } from "@/constants/network-events";
 import type { NetworkEvent, EventSeverity } from "@/types/modem-status";
 
 // --- Constants ---------------------------------------------------------------
@@ -234,8 +232,8 @@ const NetworkEventsCard = () => {
       <CardHeader>
         <CardTitle>Network Events</CardTitle>
         <CardDescription>
-          Displays recent network events, such as connection changes, errors, and
-          data usage.
+          Displays recent network events, such as connection changes, errors,
+          and data usage.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -245,7 +243,7 @@ const NetworkEventsCard = () => {
               <FieldGroup>
                 <Field orientation="horizontal" className="w-fit">
                   <FieldLabel htmlFor="event-monitoring-setting">
-                    Enable Event Monitoring
+                    Auto-refresh
                   </FieldLabel>
                   <Switch
                     id="event-monitoring-setting"
@@ -256,6 +254,16 @@ const NetworkEventsCard = () => {
               </FieldGroup>
             </FieldSet>
           </form>
+
+          {!monitoringEnabled && (
+            <Alert>
+              <BellOff className="size-4" />
+              <AlertTitle>
+                Auto-refresh paused — displaying events as of{" "}
+                {lastUpdate ? lastUpdate.toLocaleTimeString() : "last fetch"}.
+              </AlertTitle>
+            </Alert>
+          )}
 
           <div className="flex flex-col sm:py-4">
             <div className="grid flex-1 items-start gap-4 sm:py-0 md:gap-8">

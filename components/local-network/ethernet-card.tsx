@@ -148,8 +148,18 @@ const EthernetStatusCard = () => {
 
   // Colors based on connection state
   const ringColors = isConnected
-    ? { outer: "bg-green-200", mid: "bg-green-300", inner: "bg-green-400", center: "bg-green-600" }
-    : { outer: "bg-gray-200", mid: "bg-gray-300", inner: "bg-gray-400", center: "bg-gray-500" };
+    ? {
+        outer: "bg-green-200",
+        mid: "bg-green-300",
+        inner: "bg-green-400",
+        center: "bg-green-600",
+      }
+    : {
+        outer: "bg-gray-200",
+        mid: "bg-gray-300",
+        inner: "bg-gray-400",
+        center: "bg-gray-500",
+      };
 
   const beamStartColor = isConnected ? "#3b82f6" : "#9ca3af";
   const beamStopColor = isConnected ? "#22c55e" : "#6b7280";
@@ -242,12 +252,12 @@ const EthernetStatusCard = () => {
           >
             <div
               ref={deviceRef}
-              className="size-32 bg-primary/15 rounded-full p-6 flex items-center justify-center"
+              className="size-32 bg-primary/15 rounded-full p-4 flex items-center justify-center"
             >
               <Image
                 src={deviceIcon}
                 alt="Device Icon"
-                className="size-full rounded-full drop-shadow-md"
+                className="size-full drop-shadow-md object-contain"
                 priority
               />
             </div>
@@ -341,9 +351,7 @@ const EthernetStatusCard = () => {
                 Active Link Speed
               </p>
               <p className="font-semibold xl:text-md text-sm">
-                {isConnected
-                  ? formatSpeed(status?.speed ?? "")
-                  : "N/A"}
+                {isConnected ? formatSpeed(status?.speed ?? "") : "N/A"}
               </p>
             </div>
             <Separator />
@@ -352,9 +360,7 @@ const EthernetStatusCard = () => {
                 Duplex
               </p>
               <p className="font-semibold xl:text-md text-sm">
-                {isConnected
-                  ? formatDuplex(status?.duplex ?? "")
-                  : "N/A"}
+                {isConnected ? formatDuplex(status?.duplex ?? "") : "N/A"}
               </p>
             </div>
             <Separator />

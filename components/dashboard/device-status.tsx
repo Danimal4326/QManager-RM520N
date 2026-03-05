@@ -92,7 +92,7 @@ const DeviceStatusComponent = ({
               <img
                 src="/device-icon.svg"
                 alt="Device Icon"
-                className="size-full rounded-full drop-shadow-md"
+                className="size-full drop-shadow-md object-contain"
               />
             </div>
           </div>
