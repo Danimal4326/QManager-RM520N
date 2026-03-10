@@ -30,20 +30,13 @@
     qlog_debug() { :; }
 }
 qlog_init "imei_check"
+. /usr/lib/qmanager/cgi_at.sh
 
 # --- Constants ---------------------------------------------------------------
 BACKUP_CONFIG="/etc/qmanager/imei_backup.json"
 CHECK_PENDING="/etc/qmanager/imei_check_pending"
 SETTLE_TIME=20
 CMD_GAP=0.2
-
-# --- Helper: Validate IMEI (exactly 15 digits) ------------------------------
-validate_imei() {
-    case "$1" in
-        [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) return 0 ;;
-        *) return 1 ;;
-    esac
-}
 
 # --- Guard: flag must exist --------------------------------------------------
 if [ ! -f "$CHECK_PENDING" ]; then

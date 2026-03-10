@@ -41,3 +41,119 @@ run_at() {
     esac
     strip_at_response "$raw"
 }
+
+# ---------------------------------------------------------------------------
+# detect_active_cid
+# Determine which CID is carrying WAN data by cross-referencing
+# AT+CGPADDR (IPs assigned per CID) with AT+QMAP="WWAN" (authoritative WAN CID).
+#
+# Sets global: active_cid="<number>"  (defaults to "1" if both methods fail)
+# Respects:    CMD_GAP (inter-command sleep, defaults to 0.2s if unset)
+#
+# Usage:
+#   detect_active_cid
+#   echo "Active CID: $active_cid"
+# ---------------------------------------------------------------------------
+detect_active_cid() {
+    local gap="${CMD_GAP:-0.2}"
+    local cgpaddr_resp cgpaddr_cids qmap_resp qmap_cid
+    active_cid=""
+
+    # Step 1: AT+CGPADDR — collect all CIDs that have a real IPv4 address
+    cgpaddr_resp=$(run_at "AT+CGPADDR")
+    sleep "$gap"
+
+    cgpaddr_cids=""
+    if [ -n "$cgpaddr_resp" ]; then
+        cgpaddr_cids=$(printf '%s' "$cgpaddr_resp" | awk -F'[,"]' '
+            /\+CGPADDR:/ {
+                cid = $1; gsub(/[^0-9]/, "", cid)
+                ip = $3
+                if (ip != "" && ip != "0.0.0.0" && ip !~ /^0+(\.0+)*$/) {
+                    split(ip, octets, ".")
+                    if (length(octets) == 4 && octets[1]+0 > 0) {
+                        print cid
+                    }
+                }
+            }
+        ')
+    fi
+
+    # Step 2: AT+QMAP="WWAN" — get the WAN-connected CID (authoritative)
+    qmap_cid=""
+    qmap_resp=$(run_at 'AT+QMAP="WWAN"')
+    if [ -n "$qmap_resp" ]; then
+        # +QMAP: "WWAN",<connected>,<cid>,"<type>","<ip>"
+        qmap_cid=$(printf '%s' "$qmap_resp" | awk -F',' '
+            /\+QMAP:/ {
+                gsub(/"/, "", $5)
+                ip = $5
+                cid = $3
+                gsub(/[^0-9]/, "", cid)
+                if (ip != "" && ip != "0.0.0.0" && ip != "0:0:0:0:0:0:0:0") {
+                    print cid
+                    exit
+                }
+            }
+        ')
+    fi
+
+    # Step 3: QMAP is authoritative; CGPADDR is fallback
+    if [ -n "$qmap_cid" ]; then
+        active_cid="$qmap_cid"
+        qlog_debug "Active CID from QMAP: $qmap_cid (CGPADDR CIDs: $cgpaddr_cids)"
+    elif [ -n "$cgpaddr_cids" ]; then
+        active_cid=$(printf '%s\n' "$cgpaddr_cids" | head -1)
+        qlog_debug "Active CID from CGPADDR fallback: $active_cid"
+    fi
+
+    # Default to CID 1 if both detection methods failed
+    [ -z "$active_cid" ] && active_cid="1"
+}
+
+# ---------------------------------------------------------------------------
+# parse_cgdcont <raw_response>
+# Parse AT+CGDCONT? response into a JSON array [{cid, pdp_type, apn}].
+# Outputs JSON array to stdout. Outputs "[]" if input is empty or unmatched.
+#
+# Usage:
+#   profiles_json=$(parse_cgdcont "$cgdcont_resp")
+# ---------------------------------------------------------------------------
+parse_cgdcont() {
+    local raw="$1"
+    if [ -z "$raw" ]; then
+        echo "[]"
+        return
+    fi
+    printf '%s' "$raw" | awk -F'"' '
+        /\+CGDCONT:/ {
+            split($0, a, /[,]/)
+            gsub(/[^0-9]/, "", a[1])
+            cid = a[1]
+            pdp = $2
+            apn = $4
+            if (cid != "") {
+                printf "%s\t%s\t%s\n", cid, pdp, apn
+            }
+        }
+    ' | jq -Rsc '
+        split("\n") | map(select(length > 0) | split("\t") |
+            {cid: (.[0] | tonumber), pdp_type: .[1], apn: .[2]}
+        )
+    '
+}
+
+# ---------------------------------------------------------------------------
+# validate_imei <imei>
+# Validate that <imei> is exactly 15 decimal digits.
+# Returns 0 if valid, 1 if invalid (including empty input).
+#
+# Usage:
+#   validate_imei "$NEW_IMEI" || { echo "Invalid IMEI"; exit 1; }
+# ---------------------------------------------------------------------------
+validate_imei() {
+    case "$1" in
+        [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) return 0 ;;
+        *) return 1 ;;
+    esac
+}
