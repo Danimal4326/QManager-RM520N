@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # current_settings.sh — CGI Endpoint: Current Modem Settings
 # =============================================================================
@@ -20,30 +21,15 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_debug() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-}
 qlog_init "cgi_current_settings"
+cgi_headers
 
 # --- Configuration -----------------------------------------------------------
 CMD_GAP=0.2   # Gap between AT commands (seconds)
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Helper: Execute AT command via qcmd, return stripped response -----------
 strip_at_response() {

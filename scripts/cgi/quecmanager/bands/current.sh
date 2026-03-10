@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # current.sh — CGI Endpoint: Get Current Band Lock Configuration
 # =============================================================================
@@ -27,31 +28,16 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-    qlog_debug() { :; }
-}
 qlog_init "cgi_bands_current"
+cgi_headers
 
 # --- Configuration -----------------------------------------------------------
 FAILOVER_ENABLED_FILE="/etc/qmanager/band_failover_enabled"
 FAILOVER_ACTIVATED_FLAG="/tmp/qmanager_band_failover"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache, no-store, must-revalidate"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Query modem for current band configuration ------------------------------
 qlog_info "Querying ue_capability_band"

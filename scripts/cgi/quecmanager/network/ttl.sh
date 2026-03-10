@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # ttl.sh — CGI Endpoint: TTL / Hop Limit Configuration (GET + POST)
 # =============================================================================
@@ -22,31 +23,17 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-    qlog_debug() { :; }
-}
 qlog_init "cgi_ttl"
+cgi_headers
+cgi_handle_options
 
 # --- Configuration -----------------------------------------------------------
 TTL_FILE="/etc/firewall.user.ttl"
 TTL_INIT="/etc/init.d/qmanager_ttl"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache, no-store, must-revalidate"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Helper: parse current values from the firewall rules file ----------------
 get_current_values() {
@@ -191,4 +178,4 @@ EOF
 fi
 
 # --- Method not allowed -------------------------------------------------------
-echo '{"success":false,"error":"method_not_allowed","detail":"Use GET or POST"}'
+cgi_method_not_allowed

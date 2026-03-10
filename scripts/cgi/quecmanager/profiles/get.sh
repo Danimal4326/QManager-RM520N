@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # get.sh — CGI Endpoint: Get Single SIM Profile
 # =============================================================================
@@ -12,30 +13,15 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_debug() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-}
 qlog_init "cgi_profile_get"
+cgi_headers
 
 # --- Source profile manager library ------------------------------------------
 . /usr/lib/qmanager/profile_mgr.sh
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Extract profile ID from query string ------------------------------------
 # QUERY_STRING format: id=p_1707900000_abc

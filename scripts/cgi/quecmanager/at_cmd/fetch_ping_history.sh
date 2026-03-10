@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # fetch_ping_history.sh — CGI Endpoint for Ping History Chart Data
 # =============================================================================
@@ -20,10 +21,6 @@
 PING_HISTORY_FILE="/tmp/qmanager_ping_history.json"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache, no-store, must-revalidate"
-echo "Access-Control-Allow-Origin: *"
-echo ""
 
 # --- Serve ping history as JSON array ----------------------------------------
 if [ -f "$PING_HISTORY_FILE" ] && [ -s "$PING_HISTORY_FILE" ]; then

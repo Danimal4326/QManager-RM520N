@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # lock.sh — CGI Endpoint: Apply Band Lock
 # =============================================================================
@@ -18,14 +19,9 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-    qlog_debug() { :; }
-}
 qlog_init "cgi_bands_lock"
+cgi_headers
+cgi_handle_options
 
 # --- Configuration -----------------------------------------------------------
 FAILOVER_ENABLED_FILE="/etc/qmanager/band_failover_enabled"
@@ -34,17 +30,8 @@ FAILOVER_PID_FILE="/tmp/qmanager_band_failover.pid"
 FAILOVER_SCRIPT="/usr/bin/qmanager_band_failover"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: POST, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Validate method ---------------------------------------------------------
 if [ "$REQUEST_METHOD" != "POST" ]; then
@@ -53,12 +40,7 @@ if [ "$REQUEST_METHOD" != "POST" ]; then
 fi
 
 # --- Read POST body ----------------------------------------------------------
-if [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" -gt 0 ] 2>/dev/null; then
-    POST_DATA=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null)
-else
-    echo '{"success":false,"error":"no_body","detail":"POST body is empty"}'
-    exit 0
-fi
+cgi_read_post
 
 # --- Parse JSON fields -------------------------------------------------------
 BAND_TYPE=$(printf '%s' "$POST_DATA" | jq -r '.band_type // empty')

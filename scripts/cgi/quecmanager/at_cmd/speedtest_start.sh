@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # speedtest_start.sh — CGI Endpoint: Start Speedtest
 # =============================================================================
@@ -18,13 +19,9 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-}
 qlog_init "cgi_speedtest"
+cgi_headers
+cgi_handle_options
 
 # --- Configuration -----------------------------------------------------------
 PID_FILE="/tmp/qmanager_speedtest.pid"
@@ -34,17 +31,8 @@ ERROR_FILE="/tmp/qmanager_speedtest_error"
 WRAPPER_SCRIPT="/tmp/qmanager_speedtest_run.sh"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: POST, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Validate method ---------------------------------------------------------
 if [ "$REQUEST_METHOD" != "POST" ]; then

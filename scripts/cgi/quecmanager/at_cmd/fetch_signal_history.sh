@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # fetch_signal_history.sh — CGI Endpoint for Signal History Chart Data
 # =============================================================================
@@ -20,10 +21,6 @@
 SIGNAL_HISTORY_FILE="/tmp/qmanager_signal_history.json"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache, no-store, must-revalidate"
-echo "Access-Control-Allow-Origin: *"
-echo ""
 
 # --- Serve signal history as JSON array --------------------------------------
 if [ -f "$SIGNAL_HISTORY_FILE" ] && [ -s "$SIGNAL_HISTORY_FILE" ]; then

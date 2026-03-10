@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # delete.sh — CGI Endpoint: Delete SIM Profile
 # =============================================================================
@@ -15,30 +16,16 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_debug() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-}
 qlog_init "cgi_profile_delete"
+cgi_headers
+cgi_handle_options
 
 # --- Source profile manager library ------------------------------------------
 . /usr/lib/qmanager/profile_mgr.sh
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: POST, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Validate method ---------------------------------------------------------
 if [ "$REQUEST_METHOD" != "POST" ]; then
@@ -47,12 +34,7 @@ if [ "$REQUEST_METHOD" != "POST" ]; then
 fi
 
 # --- Read POST body ----------------------------------------------------------
-if [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" -gt 0 ] 2>/dev/null; then
-    POST_DATA=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null)
-else
-    echo '{"success":false,"error":"no_body","detail":"POST body is empty"}'
-    exit 0
-fi
+cgi_read_post
 
 # --- Extract profile ID from JSON body ----------------------------------------
 PROFILE_ID=$(printf '%s' "$POST_DATA" | jq -r '.id // empty')

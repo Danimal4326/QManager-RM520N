@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # settings.sh — CGI Endpoint: Cellular Basic Settings (GET + POST)
 # =============================================================================
@@ -26,14 +27,9 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-    qlog_debug() { :; }
-}
 qlog_init "cgi_cellular_settings"
+cgi_headers
+cgi_handle_options
 
 # --- Configuration -----------------------------------------------------------
 CMD_GAP=0.2
@@ -50,17 +46,8 @@ nr5g_unit_to_kbps() {
 }
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache, no-store, must-revalidate"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # =============================================================================
 # GET — Fetch current settings and AMBR data
@@ -411,4 +398,4 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 fi
 
 # --- Method not allowed -------------------------------------------------------
-echo '{"success":false,"error":"method_not_allowed","detail":"Use GET or POST"}'
+cgi_method_not_allowed

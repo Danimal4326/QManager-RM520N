@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # speedtest_status.sh — CGI Endpoint: Speedtest Status / Progress
 # =============================================================================
@@ -23,17 +24,8 @@ OUTPUT_FILE="/tmp/qmanager_speedtest_output"
 RESULT_FILE="/tmp/qmanager_speedtest_result.json"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # =============================================================================
 # HELPERS

@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # fetch_data.sh — CGI Endpoint for Dashboard Data
 # =============================================================================
@@ -12,22 +13,12 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_debug() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-}
 qlog_init "cgi_fetch"
+cgi_headers
 
 CACHE_FILE="/tmp/qmanager_status.json"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache, no-store, must-revalidate"
-echo "Access-Control-Allow-Origin: *"
-echo ""
 
 # --- Serve the cache ---------------------------------------------------------
 if [ -f "$CACHE_FILE" ]; then

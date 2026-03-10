@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # list.sh — CGI Endpoint: List Custom Connection Scenarios
 # =============================================================================
@@ -21,17 +22,8 @@ SCENARIOS_DIR="/etc/qmanager/scenarios"
 ACTIVE_SCENARIO_FILE="/etc/qmanager/active_scenario"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Read active scenario ----------------------------------------------------
 ACTIVE_ID=""

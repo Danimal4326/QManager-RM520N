@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # apply_status.sh — CGI Endpoint: Profile Apply Status
 # =============================================================================
@@ -21,17 +22,8 @@ STATE_FILE="/tmp/qmanager_profile_state.json"
 PID_FILE="/tmp/qmanager_profile_apply.pid"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Case 1: No state file — nothing has been applied yet --------------------
 if [ ! -f "$STATE_FILE" ]; then

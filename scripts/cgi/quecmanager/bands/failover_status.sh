@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # failover_status.sh — CGI Endpoint: Get Failover State (Lightweight)
 # =============================================================================
@@ -22,17 +23,8 @@ FAILOVER_ACTIVATED_FLAG="/tmp/qmanager_band_failover"
 WATCHER_PID_FILE="/tmp/qmanager_band_failover.pid"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Read failover enabled flag (persistent, flash) --------------------------
 enabled="false"

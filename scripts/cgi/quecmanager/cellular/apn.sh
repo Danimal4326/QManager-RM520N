@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # apn.sh — CGI Endpoint: APN Management (GET + POST)
 # =============================================================================
@@ -20,31 +21,17 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
-    qlog_init() { :; }
-    qlog_info() { :; }
-    qlog_warn() { :; }
-    qlog_error() { :; }
-    qlog_debug() { :; }
-}
 qlog_init "cgi_apn"
+cgi_headers
+cgi_handle_options
 
 # --- Configuration -----------------------------------------------------------
 CMD_GAP=0.2
 TTL_FILE="/etc/firewall.user.ttl"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache, no-store, must-revalidate"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Helper: Execute AT command via qcmd, return stripped response -----------
 strip_at_response() {
@@ -288,4 +275,4 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 fi
 
 # --- Method not allowed -------------------------------------------------------
-echo '{"success":false,"error":"method_not_allowed","detail":"Use GET or POST"}'
+cgi_method_not_allowed

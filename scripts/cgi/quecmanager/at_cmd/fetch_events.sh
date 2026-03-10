@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # fetch_events.sh — CGI Endpoint for Recent Activities / Network Events
 # =============================================================================
@@ -17,10 +18,6 @@
 EVENTS_FILE="/tmp/qmanager_events.json"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache, no-store, must-revalidate"
-echo "Access-Control-Allow-Origin: *"
-echo ""
 
 # --- Serve events as JSON array ----------------------------------------------
 if [ -f "$EVENTS_FILE" ] && [ -s "$EVENTS_FILE" ]; then

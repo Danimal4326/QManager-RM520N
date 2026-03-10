@@ -1,4 +1,5 @@
 #!/bin/sh
+. /usr/lib/qmanager/cgi_base.sh
 # =============================================================================
 # cell_scan_status.sh — CGI Endpoint: Cell Scan Status
 # =============================================================================
@@ -21,17 +22,8 @@ RESULT_FILE="/tmp/qmanager_cell_scan_result.json"
 ERROR_FILE="/tmp/qmanager_cell_scan_error"
 
 # --- HTTP Headers ------------------------------------------------------------
-echo "Content-Type: application/json"
-echo "Cache-Control: no-cache, no-store, must-revalidate"
-echo "Access-Control-Allow-Origin: *"
-echo "Access-Control-Allow-Methods: GET, OPTIONS"
-echo "Access-Control-Allow-Headers: Content-Type"
-echo ""
 
 # --- Handle CORS preflight ---------------------------------------------------
-if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
-    exit 0
-fi
 
 # --- Check: scanner process running? -----------------------------------------
 if [ -f "$PID_FILE" ]; then
