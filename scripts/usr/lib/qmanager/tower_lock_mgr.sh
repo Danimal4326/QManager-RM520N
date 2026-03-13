@@ -57,7 +57,8 @@ tower_config_init() {
         qlog_warn "Tower config file is invalid JSON, recreating"
     fi
 
-    printf '%s\n' "$TOWER_DEFAULT_CONFIG" | jq '.' > "$TOWER_CONFIG_FILE"
+    local tmp="${TOWER_CONFIG_FILE}.tmp"
+    printf '%s\n' "$TOWER_DEFAULT_CONFIG" | jq '.' > "$tmp" && mv "$tmp" "$TOWER_CONFIG_FILE"
     qlog_info "Created default tower lock config"
 }
 

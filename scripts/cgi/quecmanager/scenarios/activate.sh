@@ -99,6 +99,17 @@ case "$SCENARIO_ID" in
             exit 0
         fi
 
+        # Validate band format: only digits and colons allowed (e.g., "1:3:28")
+        for _band_field in "$LTE_BANDS" "$NSA_NR_BANDS" "$SA_NR_BANDS"; do
+            if [ -n "$_band_field" ]; then
+                _cleaned=$(printf '%s' "$_band_field" | tr -d '0-9:')
+                if [ -n "$_cleaned" ]; then
+                    cgi_error "invalid_bands" "Band values must contain only digits and colons"
+                    exit 0
+                fi
+            fi
+        done
+
         # Validate mode value
         case "$AT_MODE" in
             AUTO|LTE|NR5G|LTE:NR5G) ;;

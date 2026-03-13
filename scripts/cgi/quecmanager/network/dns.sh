@@ -108,6 +108,18 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             cgi_error "missing_field" "At least one DNS server (dns1, dns2, or dns3) is required when enabling"
             exit 0
         fi
+        # Validate IP address format (IPv4)
+        for _dns in "$dns1" "$dns2" "$dns3"; do
+            if [ -n "$_dns" ]; then
+                case "$_dns" in
+                    [0-9]*.[0-9]*.[0-9]*.[0-9]*) ;;
+                    *)
+                        cgi_error "invalid_dns" "Invalid DNS server address: $_dns"
+                        exit 0
+                        ;;
+                esac
+            fi
+        done
     fi
 
     # -------------------------------------------------------------------------

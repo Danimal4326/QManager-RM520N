@@ -110,11 +110,13 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
     qlog_info "Setting MTU=$mtu_value"
 
-    # --- Write firewall MTU configuration file ---
-    > "$MTU_FIREWALL_FILE"
+    # --- Write firewall MTU configuration file (atomic: temp + mv) ---
+    MTU_TMP="${MTU_FIREWALL_FILE}.tmp"
+    > "$MTU_TMP"
     for iface in $(ls /sys/class/net 2>/dev/null | grep '^rmnet_data'); do
-        echo "ip link set $iface mtu $mtu_value" >> "$MTU_FIREWALL_FILE"
+        echo "ip link set $iface mtu $mtu_value" >> "$MTU_TMP"
     done
+    mv "$MTU_TMP" "$MTU_FIREWALL_FILE"
 
     # --- Immediately apply MTU ---
     for iface in $(ls /sys/class/net 2>/dev/null | grep '^rmnet_data'); do

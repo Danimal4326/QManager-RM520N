@@ -205,8 +205,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     fi
 
     # Apply speed limit via ethtool
-    apply_speed_limit "$speed_limit"
-    if [ $? -ne 0 ]; then
+    if ! apply_speed_limit "$speed_limit"; then
         qlog_error "Failed to apply speed limit: $speed_limit"
         cgi_error "ethtool_failed" "Failed to set link speed limit"
         exit 0

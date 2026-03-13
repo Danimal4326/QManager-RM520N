@@ -63,7 +63,7 @@ rm -f "$SCENARIO_FILE"
 if [ -f "$ACTIVE_SCENARIO_FILE" ]; then
     ACTIVE_ID=$(cat "$ACTIVE_SCENARIO_FILE" 2>/dev/null | tr -d ' \n\r')
     if [ "$ACTIVE_ID" = "$SCENARIO_ID" ]; then
-        printf 'balanced' > "$ACTIVE_SCENARIO_FILE"
+        printf 'balanced' > "${ACTIVE_SCENARIO_FILE}.tmp" && mv "${ACTIVE_SCENARIO_FILE}.tmp" "$ACTIVE_SCENARIO_FILE"
     fi
 fi
 

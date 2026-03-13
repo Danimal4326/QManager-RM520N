@@ -154,16 +154,18 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
                 ip6tables -t mangle -D POSTROUTING -o rmnet+ -j HL --hl-set "$current_hl" 2>/dev/null
             fi
 
-            # Write new rules file
-            > "$TTL_FILE"
+            # Write new rules file (atomic: temp + mv)
+            TTL_TMP="${TTL_FILE}.tmp"
+            > "$TTL_TMP"
             if [ "$TTL" -gt 0 ] 2>/dev/null; then
-                echo "iptables -t mangle -A POSTROUTING -o rmnet+ -j TTL --ttl-set $TTL" >> "$TTL_FILE"
+                echo "iptables -t mangle -A POSTROUTING -o rmnet+ -j TTL --ttl-set $TTL" >> "$TTL_TMP"
                 iptables -t mangle -A POSTROUTING -o rmnet+ -j TTL --ttl-set "$TTL"
             fi
             if [ "$HL" -gt 0 ] 2>/dev/null; then
-                echo "ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set $HL" >> "$TTL_FILE"
+                echo "ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set $HL" >> "$TTL_TMP"
                 ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set "$HL"
             fi
+            mv "$TTL_TMP" "$TTL_FILE"
 
             qlog_info "TTL/HL applied: TTL=$TTL, HL=$HL"
         else

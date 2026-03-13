@@ -94,8 +94,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
     cgi_read_post
 
-    new_ttl=$(printf '%s' "$POST_DATA" | jq -r '.ttl // "0"' | tr -d '"')
-    new_hl=$(printf '%s' "$POST_DATA" | jq -r '.hl // "0"' | tr -d '"')
+    new_ttl=$(printf '%s' "$POST_DATA" | jq -r '.ttl // "0"')
+    new_hl=$(printf '%s' "$POST_DATA" | jq -r '.hl // "0"')
 
     # --- Validate TTL ---
     case "$new_ttl" in
@@ -135,16 +135,18 @@ EOF
         ip6tables -t mangle -D POSTROUTING -o rmnet+ -j HL --hl-set "$cur_hl" 2>/dev/null
     fi
 
-    # --- Write new rules file ---
-    > "$TTL_FILE"
+    # --- Write new rules file (atomic: temp + mv) ---
+    TTL_TMP="${TTL_FILE}.tmp"
+    > "$TTL_TMP"
     if [ "$new_ttl" -gt 0 ] 2>/dev/null; then
-        echo "iptables -t mangle -A POSTROUTING -o rmnet+ -j TTL --ttl-set $new_ttl" >> "$TTL_FILE"
+        echo "iptables -t mangle -A POSTROUTING -o rmnet+ -j TTL --ttl-set $new_ttl" >> "$TTL_TMP"
         iptables -t mangle -A POSTROUTING -o rmnet+ -j TTL --ttl-set "$new_ttl"
     fi
     if [ "$new_hl" -gt 0 ] 2>/dev/null; then
-        echo "ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set $new_hl" >> "$TTL_FILE"
+        echo "ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set $new_hl" >> "$TTL_TMP"
         ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set "$new_hl"
     fi
+    mv "$TTL_TMP" "$TTL_FILE"
 
     # Determine new enabled state
     is_enabled="false"

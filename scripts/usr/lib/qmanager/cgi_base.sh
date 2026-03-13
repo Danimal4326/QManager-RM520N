@@ -65,7 +65,7 @@ cgi_read_post() {
 # Returns 405 JSON and exits for any unsupported HTTP method.
 # ---------------------------------------------------------------------------
 cgi_method_not_allowed() {
-    echo '{"success":false,"error":"method_not_allowed","detail":"Use GET or POST"}'
+    jq -n '{"success":false,"error":"method_not_allowed","detail":"Use GET or POST"}'
     exit 0
 }
 
@@ -75,13 +75,13 @@ cgi_method_not_allowed() {
 
 # Emit {"success":true}
 cgi_success() {
-    echo '{"success":true}'
+    jq -n '{"success":true}'
 }
 
 # cgi_error <error_code> <detail_message>
-# Values must not contain double-quotes or newlines (safe for all current uses).
 cgi_error() {
-    printf '{"success":false,"error":"%s","detail":"%s"}\n' "$1" "${2:-}"
+    jq -n --arg error "$1" --arg detail "${2:-}" \
+        '{"success":false,"error":$error,"detail":$detail}'
 }
 
 # ---------------------------------------------------------------------------
