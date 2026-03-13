@@ -274,8 +274,9 @@ const CustomProfileFormComponent = ({
                     placeholder="My LTE Profile"
                     value={form.name}
                     onChange={(e) => updateField("name", e.target.value)}
+                    aria-describedby={errors.name ? "profileName-error" : undefined}
                   />
-                  {errors.name && <FieldError>{errors.name}</FieldError>}
+                  {errors.name && <FieldError id="profileName-error">{errors.name}</FieldError>}
                 </Field>
 
                 <Field>
@@ -352,8 +353,9 @@ const CustomProfileFormComponent = ({
                     onChange={(e) =>
                       updateField("cid", parseInt(e.target.value) || 1)
                     }
+                    aria-describedby={errors.cid ? "apnCid-error" : undefined}
                   />
-                  {errors.cid && <FieldError>{errors.cid}</FieldError>}
+                  {errors.cid && <FieldError id="apnCid-error">{errors.cid}</FieldError>}
                 </Field>
               </div>
 
@@ -366,8 +368,9 @@ const CustomProfileFormComponent = ({
                   maxLength={15}
                   value={form.imei}
                   onChange={(e) => updateField("imei", e.target.value)}
+                  aria-describedby={errors.imei ? "imei-error" : undefined}
                 />
-                {errors.imei && <FieldError>{errors.imei}</FieldError>}
+                {errors.imei && <FieldError id="imei-error">{errors.imei}</FieldError>}
               </Field>
 
               <div className="grid grid-cols-1 @md/card:grid-cols-2 gap-4">
@@ -382,8 +385,9 @@ const CustomProfileFormComponent = ({
                     onChange={(e) =>
                       updateField("ttl", parseInt(e.target.value) || 0)
                     }
+                    aria-describedby={errors.ttl ? "ttl-error" : undefined}
                   />
-                  {errors.ttl && <FieldError>{errors.ttl}</FieldError>}
+                  {errors.ttl && <FieldError id="ttl-error">{errors.ttl}</FieldError>}
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="hl">HL Value (IPv6)</FieldLabel>
@@ -396,8 +400,9 @@ const CustomProfileFormComponent = ({
                     onChange={(e) =>
                       updateField("hl", parseInt(e.target.value) || 0)
                     }
+                    aria-describedby={errors.hl ? "hl-error" : undefined}
                   />
-                  {errors.hl && <FieldError>{errors.hl}</FieldError>}
+                  {errors.hl && <FieldError id="hl-error">{errors.hl}</FieldError>}
                 </Field>
               </div>
 

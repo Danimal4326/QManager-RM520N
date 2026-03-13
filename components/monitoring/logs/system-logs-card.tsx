@@ -364,6 +364,7 @@ const SystemLogsCard = () => {
             <Button
               variant="outline"
               size="icon"
+              aria-label="Refresh system logs"
               onClick={() => fetchLogs()}
             >
               <RefreshCcwIcon className="h-4 w-4" />

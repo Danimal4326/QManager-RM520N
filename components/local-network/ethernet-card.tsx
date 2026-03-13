@@ -237,6 +237,7 @@ const EthernetStatusCard = () => {
           <Button
             variant="outline"
             size="icon"
+            aria-label="Refresh ethernet status"
             onClick={() => fetchStatus()}
             disabled={isSaving}
           >
@@ -373,7 +374,7 @@ const EthernetStatusCard = () => {
                 onValueChange={handleSpeedChange}
                 disabled={isSaving}
               >
-                <SelectTrigger className="w-full max-w-46 font-semibold text-muted-foreground xl:text-md text-sm">
+                <SelectTrigger aria-label="Set Link Speed" className="w-full max-w-46 font-semibold text-muted-foreground xl:text-md text-sm">
                   {isSaving ? (
                     <span className="flex items-center gap-2">
                       <Loader2 className="h-3 w-3 animate-spin" />

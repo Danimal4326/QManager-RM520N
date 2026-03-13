@@ -437,7 +437,7 @@ const NrFreqLockingComponent = ({
                         />
                       </Field>
                       <Field>
-                        <FieldLabel htmlFor="nr-freq-scs1">SCS</FieldLabel>
+                        <FieldLabel>SCS</FieldLabel>
                         <Select
                           value={scs1}
                           onValueChange={(v) => {
@@ -446,7 +446,7 @@ const NrFreqLockingComponent = ({
                           }}
                           disabled={isDisabled}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger aria-label="SCS slot 1">
                             <SelectValue placeholder="SCS" />
                           </SelectTrigger>
                           <SelectContent>
@@ -487,7 +487,7 @@ const NrFreqLockingComponent = ({
                         />
                       </Field>
                       <Field>
-                        <FieldLabel htmlFor="nr-freq-scs2">SCS 2</FieldLabel>
+                        <FieldLabel>SCS 2</FieldLabel>
                         <Select
                           value={scs2}
                           onValueChange={(v) => {
@@ -496,7 +496,7 @@ const NrFreqLockingComponent = ({
                           }}
                           disabled={isDisabled}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger aria-label="SCS slot 2">
                             <SelectValue placeholder="SCS" />
                           </SelectTrigger>
                           <SelectContent>
@@ -537,7 +537,7 @@ const NrFreqLockingComponent = ({
                         />
                       </Field>
                       <Field>
-                        <FieldLabel htmlFor="nr-freq-scs3">SCS 3</FieldLabel>
+                        <FieldLabel>SCS 3</FieldLabel>
                         <Select
                           value={scs3}
                           onValueChange={(v) => {
@@ -546,7 +546,7 @@ const NrFreqLockingComponent = ({
                           }}
                           disabled={isDisabled}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger aria-label="SCS slot 3">
                             <SelectValue placeholder="SCS" />
                           </SelectTrigger>
                           <SelectContent>
@@ -587,7 +587,7 @@ const NrFreqLockingComponent = ({
                         />
                       </Field>
                       <Field>
-                        <FieldLabel htmlFor="nr-freq-scs4">SCS 4</FieldLabel>
+                        <FieldLabel>SCS 4</FieldLabel>
                         <Select
                           value={scs4}
                           onValueChange={(v) => {
@@ -596,7 +596,7 @@ const NrFreqLockingComponent = ({
                           }}
                           disabled={isDisabled}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger aria-label="SCS slot 4">
                             <SelectValue placeholder="SCS" />
                           </SelectTrigger>
                           <SelectContent>

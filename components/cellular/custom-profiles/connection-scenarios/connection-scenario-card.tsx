@@ -427,7 +427,7 @@ const ConnectionScenariosCard = () => {
             <div className="space-y-2">
               <Label>Network Mode</Label>
               <Select value={addMode} onValueChange={setAddMode}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Network Mode">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -565,7 +565,7 @@ const ConnectionScenariosCard = () => {
             <div className="space-y-2">
               <Label>Network Mode</Label>
               <Select value={editMode} onValueChange={setEditMode}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Network Mode">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

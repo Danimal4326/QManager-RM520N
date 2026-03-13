@@ -190,7 +190,7 @@ const MBNCard = ({
                     onValueChange={setLocalAutoSel}
                     disabled={isSaving}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Auto-Carrier Matching">
                       <SelectValue placeholder="Choose Auto-Carrier Matching" />
                     </SelectTrigger>
                     <SelectContent>
@@ -212,7 +212,7 @@ const MBNCard = ({
                     onValueChange={setSelectedProfile}
                     disabled={isSaving || localAutoSel === "1"}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Firmware Carrier Profile">
                       <SelectValue placeholder="Choose Firmware Carrier Profile" />
                     </SelectTrigger>
                     <SelectContent>

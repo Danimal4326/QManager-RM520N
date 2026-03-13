@@ -268,6 +268,7 @@ const LiveLatencyComponent = ({ connectivity }: LiveLatencyComponentProps) => {
                   variant="default"
                   size="icon-sm"
                   className="p-0.5 rounded-full"
+                  aria-label="Start speed test"
                   onClick={handleSpeedtestOpen}
                 >
                   <TbPlayerPlayFilled className="w-4 h-4" />

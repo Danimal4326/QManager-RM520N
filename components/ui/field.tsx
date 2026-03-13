@@ -187,9 +187,11 @@ function FieldError({
   className,
   children,
   errors,
+  id,
   ...props
 }: React.ComponentProps<"div"> & {
   errors?: Array<{ message?: string } | undefined>
+  id?: string
 }) {
   const content = useMemo(() => {
     if (children) {
@@ -224,6 +226,7 @@ function FieldError({
 
   return (
     <div
+      id={id}
       role="alert"
       data-slot="field-error"
       className={cn("text-destructive text-sm font-normal", className)}

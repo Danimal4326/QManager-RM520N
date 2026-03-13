@@ -507,6 +507,7 @@ const FrequencyCalculator = () => {
                     variant="ghost"
                     size="icon"
                     onClick={() => deleteHistoryEntry(entry.id)}
+                    aria-label="Delete history entry"
                     className="h-8 w-8 text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-4 w-4" />

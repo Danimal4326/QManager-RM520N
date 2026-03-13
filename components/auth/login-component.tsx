@@ -39,6 +39,7 @@ const LoginComponent = () => {
               type="password"
               placeholder="Enter your password"
               required
+              aria-required="true"
             />
           </Field>
           <Field>

@@ -194,7 +194,7 @@ const APNSettingsCard = ({
               <FieldGroup>
                 <div className="grid xl:grid-cols-2 grid-cols-1 grid-flow-row gap-4">
                   <Field>
-                    <FieldLabel htmlFor="active-apn">Active APN</FieldLabel>
+                    <FieldLabel htmlFor="active-apn">Active APN *</FieldLabel>
                     <Input
                       id="active-apn"
                       placeholder="Enter Active APN"
@@ -202,6 +202,7 @@ const APNSettingsCard = ({
                       onChange={(e) => setActiveApn(e.target.value)}
                       disabled={isSaving}
                       required
+                      aria-required="true"
                     />
                   </Field>
 

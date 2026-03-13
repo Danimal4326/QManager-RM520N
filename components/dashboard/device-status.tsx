@@ -103,7 +103,7 @@ const DeviceStatusComponent = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => setHidePrivate((prev) => !prev)}
-                title={
+                aria-label={
                   hidePrivate ? "Show private details" : "Hide private details"
                 }
               >

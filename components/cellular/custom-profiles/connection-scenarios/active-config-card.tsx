@@ -73,7 +73,7 @@ export const ActiveConfigCard = ({
           </div>
           <div className="flex items-center gap-1">
             {isCustom && (
-              <Button variant="ghost" size="icon" onClick={onEdit}>
+              <Button variant="ghost" size="icon" aria-label="Edit scenario settings" onClick={onEdit}>
                 <Settings className="h-4 w-4" />
               </Button>
             )}

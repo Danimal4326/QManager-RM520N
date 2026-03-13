@@ -252,7 +252,7 @@ const IPPassthroughCard = () => {
                       onValueChange={(v) => setLocalMode(v as PassthroughMode)}
                       disabled={isSaving}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="IP Passthrough mode">
                         <SelectValue placeholder="Select Mode" />
                       </SelectTrigger>
                       <SelectContent>
@@ -278,7 +278,7 @@ const IPPassthroughCard = () => {
                           transition={{ duration: 0.2 }}
                         >
                           <Select disabled>
-                            <SelectTrigger>
+                            <SelectTrigger aria-label="Target Device MAC">
                               <SelectValue placeholder="N/A — Router Mode" />
                             </SelectTrigger>
                             <SelectContent />
@@ -301,7 +301,7 @@ const IPPassthroughCard = () => {
                             }
                             disabled={isSaving}
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger aria-label="MAC source" className="w-full">
                               <SelectValue placeholder="Select Target" />
                             </SelectTrigger>
                             <SelectContent>
@@ -364,7 +364,7 @@ const IPPassthroughCard = () => {
                       onValueChange={(v) => setLocalIpptNat(v as NatMode)}
                       disabled={isSaving}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="NAT Mode">
                         <SelectValue placeholder="Select NAT Mode" />
                       </SelectTrigger>
                       <SelectContent>
@@ -384,7 +384,7 @@ const IPPassthroughCard = () => {
                       onValueChange={(v) => setLocalUsbMode(v as UsbModeLocal)}
                       disabled={isSaving}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="USB Connection Mode">
                         <SelectValue placeholder="Choose USB Modem Protocol" />
                       </SelectTrigger>
                       <SelectContent>
@@ -407,7 +407,7 @@ const IPPassthroughCard = () => {
                       onValueChange={(v) => setLocalDnsProxy(v as DnsProxy)}
                       disabled={isSaving}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="DNS Offloading">
                         <SelectValue placeholder="Select DNS Strategy" />
                       </SelectTrigger>
                       <SelectContent>
