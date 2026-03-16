@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
   Card,
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DogIcon, InfoIcon, Loader2 } from "lucide-react";
@@ -224,17 +225,25 @@ export function WatchdogStatusCard({
         <CardDescription>Live connection health status.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
-          <Badge className={badge.className}>{badge.label}</Badge>
-          {/* Status rows — data-driven for clean conditional rendering */}
-          <dl className="grid grid-cols-[auto_1fr] @xs/card:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            {statusRows.map((row) => (
-              <div key={row.label} className="contents">
-                <dt className="text-muted-foreground">{row.label}</dt>
-                <dd className="font-medium">{row.value}</dd>
+        <div className="grid gap-2">
+          {/* State badge */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-muted-foreground">State</p>
+            <Badge className={badge.className}>{badge.label}</Badge>
+          </div>
+          {/* Status rows — matching Cellular Information card pattern */}
+          {statusRows.map((row) => (
+            <React.Fragment key={row.label}>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-muted-foreground">
+                  {row.label}
+                </p>
+                <p className="text-sm font-semibold">{row.value}</p>
               </div>
-            ))}
-          </dl>
+            </React.Fragment>
+          ))}
+          <Separator />
 
           {/* SIM Failover section */}
           {simFailover?.active && (

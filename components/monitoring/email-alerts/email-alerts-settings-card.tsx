@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 import {
@@ -24,7 +24,8 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, EyeIcon, EyeOffIcon, SendIcon } from "lucide-react";
+import { Loader2, EyeIcon, EyeOffIcon, SendIcon, AlertCircle, RefreshCcwIcon } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   useEmailAlerts,
   type EmailAlertsSavePayload,
@@ -36,7 +37,11 @@ import {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const EmailAlertsSettingsCard = () => {
+interface EmailAlertsSettingsCardProps {
+  onTestEmailSent?: () => void;
+}
+
+const EmailAlertsSettingsCard = ({ onTestEmailSent }: EmailAlertsSettingsCardProps) => {
   const {
     settings,
     isLoading,
@@ -45,6 +50,7 @@ const EmailAlertsSettingsCard = () => {
     error,
     saveSettings,
     sendTestEmail,
+    refresh,
   } = useEmailAlerts();
 
   // --- Local form state (synced from hook via useEffect) ---------------------
@@ -92,76 +98,56 @@ const EmailAlertsSettingsCard = () => {
   );
 
   // --- Dirty check -----------------------------------------------------------
-  const isDirty = useMemo(() => {
-    if (!settings) return false;
-    return (
-      isEnabled !== settings.enabled ||
+  const isDirty = settings
+    ? isEnabled !== settings.enabled ||
       senderEmail !== settings.sender_email ||
       recipientEmail !== settings.recipient_email ||
       thresholdMinutes !== String(settings.threshold_minutes) ||
       appPassword !== settings.app_password
-    );
-  }, [
-    settings,
-    isEnabled,
-    senderEmail,
-    recipientEmail,
-    thresholdMinutes,
-    appPassword,
-  ]);
+    : false;
 
   const canSave = !hasValidationErrors && isDirty && !isSaving && !isSendingTest;
 
   // --- Handlers --------------------------------------------------------------
-  const handleToggle = useCallback((checked: boolean) => {
+  const handleToggle = (checked: boolean) => {
     setIsEnabled(checked);
-  }, []);
+  };
 
-  const handleSave = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!canSave) return;
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSave) return;
 
-      const payload: EmailAlertsSavePayload = {
-        action: "save_settings",
-        enabled: isEnabled,
-        sender_email: senderEmail,
-        recipient_email: recipientEmail,
-        threshold_minutes: parseInt(thresholdMinutes, 10),
-      };
+    const payload: EmailAlertsSavePayload = {
+      action: "save_settings",
+      enabled: isEnabled,
+      sender_email: senderEmail,
+      recipient_email: recipientEmail,
+      threshold_minutes: parseInt(thresholdMinutes, 10),
+    };
 
-      // Only include password if it changed from the saved value
-      if (appPassword !== (settings?.app_password ?? "")) {
-        payload.app_password = appPassword;
-      }
+    // Only include password if it changed from the saved value
+    if (appPassword !== (settings?.app_password ?? "")) {
+      payload.app_password = appPassword;
+    }
 
-      const success = await saveSettings(payload);
-      if (success) {
-        toast.success("Email alert settings saved");
-      } else {
-        toast.error(error || "Failed to save email alert settings");
-      }
-    },
-    [
-      canSave,
-      isEnabled,
-      senderEmail,
-      recipientEmail,
-      appPassword,
-      thresholdMinutes,
-      saveSettings,
-      error,
-    ],
-  );
+    const success = await saveSettings(payload);
+    if (success) {
+      toast.success("Email alert settings saved");
+    } else {
+      toast.error(error || "Failed to save email alert settings");
+    }
+  };
 
-  const handleSendTest = useCallback(async () => {
+  const handleSendTest = async () => {
     const success = await sendTestEmail();
     if (success) {
       toast.success("Test email sent successfully");
     } else {
       toast.error("Failed to send test email — check your configuration");
     }
-  }, [sendTestEmail]);
+    // Refresh log on both success and failure — backend logs both outcomes
+    onTestEmailSent?.();
+  };
 
   // Test button enabled only when fully configured and saved
   const canSendTest =
@@ -179,7 +165,7 @@ const EmailAlertsSettingsCard = () => {
         <CardHeader>
           <CardTitle>Email Alert Settings</CardTitle>
           <CardDescription>
-            Configure downtime notifications via email.
+            Sends via Gmail SMTP using an app password.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -199,14 +185,44 @@ const EmailAlertsSettingsCard = () => {
     );
   }
 
+  // --- Error state (initial fetch failed) ------------------------------------
+  if (!isLoading && error && !settings) {
+    return (
+      <Card className="@container/card">
+        <CardHeader>
+          <CardTitle>Email Alert Settings</CardTitle>
+          <CardDescription>
+            Sends via Gmail SMTP using an app password.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertCircle className="size-4" />
+            <AlertTitle>Failed to load settings</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>{error}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refresh()}
+              >
+                <RefreshCcwIcon className="size-3.5" />
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // --- Render ----------------------------------------------------------------
   return (
     <Card className="@container/card">
       <CardHeader>
         <CardTitle>Email Alert Settings</CardTitle>
         <CardDescription>
-          Receive an email when your connection goes down for longer than the
-          configured threshold.
+          Sends via Gmail SMTP using an app password.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -236,6 +252,7 @@ const EmailAlertsSettingsCard = () => {
                   value={senderEmail}
                   onChange={(e) => setSenderEmail(e.target.value)}
                   disabled={!isEnabled}
+                  required={isEnabled}
                   aria-invalid={!!senderEmailError}
                   aria-describedby={
                     senderEmailError ? "sender-email-error" : "sender-email-desc"
@@ -266,6 +283,7 @@ const EmailAlertsSettingsCard = () => {
                   value={recipientEmail}
                   onChange={(e) => setRecipientEmail(e.target.value)}
                   disabled={!isEnabled}
+                  required={isEnabled}
                   aria-invalid={!!recipientEmailError}
                   aria-describedby={
                     recipientEmailError
@@ -299,14 +317,15 @@ const EmailAlertsSettingsCard = () => {
                     value={appPassword}
                     onChange={(e) => setAppPassword(e.target.value)}
                     disabled={!isEnabled}
+                    required={isEnabled}
                     autoComplete="new-password"
+                    aria-describedby="app-password-desc"
                   />
                   <button
                     type="button"
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                     onClick={() => setShowPassword((v) => !v)}
-                    tabIndex={-1}
                   >
                     {showPassword ? (
                       <EyeOffIcon className="size-4" />
@@ -315,7 +334,7 @@ const EmailAlertsSettingsCard = () => {
                     )}
                   </button>
                 </div>
-                <FieldDescription>
+                <FieldDescription id="app-password-desc">
                   Generate an{" "}
                   <a
                     href="https://myaccount.google.com/apppasswords"
@@ -344,6 +363,7 @@ const EmailAlertsSettingsCard = () => {
                   value={thresholdMinutes}
                   onChange={(e) => setThresholdMinutes(e.target.value)}
                   disabled={!isEnabled}
+                  required={isEnabled}
                   aria-invalid={!!thresholdError}
                   aria-describedby={
                     thresholdError ? "threshold-error" : "threshold-desc"
@@ -360,36 +380,43 @@ const EmailAlertsSettingsCard = () => {
               </Field>
 
               {/* Action buttons */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button type="submit" className="w-fit" disabled={!canSave}>
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Saving…
-                    </>
-                  ) : (
-                    "Save Settings"
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-fit"
-                  disabled={!canSendTest}
-                  onClick={handleSendTest}
-                >
-                  {isSendingTest ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Sending…
-                    </>
-                  ) : (
-                    <>
-                      <SendIcon className="size-4" />
-                      Send Test Email
-                    </>
-                  )}
-                </Button>
+              <div className="grid gap-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button type="submit" className="w-fit" disabled={!canSave}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      "Save Settings"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-fit"
+                    disabled={!canSendTest}
+                    onClick={handleSendTest}
+                  >
+                    {isSendingTest ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Sending…
+                      </>
+                    ) : (
+                      <>
+                        <SendIcon className="size-4" />
+                        Send Test Email
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {isDirty && !canSendTest && isEnabled && (
+                  <p className="text-xs text-muted-foreground">
+                    Save your changes before sending a test email.
+                  </p>
+                )}
               </div>
             </FieldGroup>
           </FieldSet>

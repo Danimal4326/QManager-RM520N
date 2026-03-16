@@ -8,8 +8,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 // Fetches current email alert configuration on mount.
 // Provides saveSettings for persisting changes and sendTestEmail for testing.
 //
-// Backend endpoint (not yet implemented):
-//   GET/POST /cgi-bin/quecmanager/monitoring/email_alerts.sh
+// Backend: GET/POST /cgi-bin/quecmanager/monitoring/email_alerts.sh
 // =============================================================================
 
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/monitoring/email_alerts.sh";
