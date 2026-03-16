@@ -31,6 +31,8 @@ import type { WatchcatState } from "@/types/modem-status";
 
 interface WatchdogStatusCardProps {
   revertSim: () => Promise<boolean>;
+  /** Whether the user has enabled watchdog in settings (from CGI, not daemon) */
+  settingsEnabled?: boolean;
 }
 
 const STATE_BADGE_CONFIG: Record<
@@ -72,7 +74,10 @@ const TIER_LABELS: Record<number, string> = {
   4: "Reboot Device",
 };
 
-export function WatchdogStatusCard({ revertSim }: WatchdogStatusCardProps) {
+export function WatchdogStatusCard({
+  revertSim,
+  settingsEnabled,
+}: WatchdogStatusCardProps) {
   const { data: modemStatus, isLoading } = useModemStatus({
     pollInterval: 5000,
   });
@@ -84,7 +89,7 @@ export function WatchdogStatusCard({ revertSim }: WatchdogStatusCardProps) {
       const success = await revertSim();
       if (success) {
         toast.success(
-          "SIM revert requested. The watchdog will process this shortly."
+          "SIM revert requested. The watchdog will process this shortly.",
         );
       } else {
         toast.error("Failed to request SIM revert");
@@ -118,7 +123,10 @@ export function WatchdogStatusCard({ revertSim }: WatchdogStatusCardProps) {
   }
 
   // Empty/disabled state
-  if (!watchcat || !watchcat.enabled) {
+  const daemonReporting = watchcat?.enabled;
+  const enabledButNotReporting = settingsEnabled && !daemonReporting;
+
+  if (!daemonReporting && !enabledButNotReporting) {
     return (
       <Card className="@container/card">
         <CardHeader>
@@ -137,6 +145,30 @@ export function WatchdogStatusCard({ revertSim }: WatchdogStatusCardProps) {
       </Card>
     );
   }
+
+  // Enabled in settings but daemon hasn't reported yet (starting up / boot settle)
+  if (enabledButNotReporting) {
+    return (
+      <Card className="@container/card">
+        <CardHeader>
+          <CardTitle>Watchdog Status</CardTitle>
+          <CardDescription>Live connection health status.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <Loader2 className="size-10 text-muted-foreground animate-spin" />
+            <p className="text-sm text-muted-foreground text-center">
+              Watchdog is starting up. It will begin monitoring shortly.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // At this point watchcat is guaranteed to be defined and enabled
+  // (both early returns above handle the undefined/disabled cases)
+  if (!watchcat) return null;
 
   const stateKey = (watchcat.state as WatchcatState) || "disabled";
   const badge = STATE_BADGE_CONFIG[stateKey] || STATE_BADGE_CONFIG.disabled;
@@ -188,16 +220,12 @@ export function WatchdogStatusCard({ revertSim }: WatchdogStatusCardProps) {
   return (
     <Card className="@container/card">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Watchdog Status</CardTitle>
-            <CardDescription>Live connection health status.</CardDescription>
-          </div>
-          <Badge className={badge.className}>{badge.label}</Badge>
-        </div>
+        <CardTitle>Watchdog Status</CardTitle>
+        <CardDescription>Live connection health status.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
+          <Badge className={badge.className}>{badge.label}</Badge>
           {/* Status rows — data-driven for clean conditional rendering */}
           <dl className="grid grid-cols-[auto_1fr] @xs/card:grid-cols-2 gap-x-4 gap-y-2 text-sm">
             {statusRows.map((row) => (
@@ -242,9 +270,7 @@ export function WatchdogStatusCard({ revertSim }: WatchdogStatusCardProps) {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Revert to Original SIM?
-                    </AlertDialogTitle>
+                    <AlertDialogTitle>Revert to Original SIM?</AlertDialogTitle>
                     <AlertDialogDescription>
                       This will switch back to SIM slot{" "}
                       {simFailover.original_slot}. Your internet will briefly

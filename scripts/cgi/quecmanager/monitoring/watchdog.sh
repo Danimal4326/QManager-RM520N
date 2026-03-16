@@ -207,7 +207,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
         uci commit quecmanager
 
-        # Signal watchcat daemon to reload config
+        # Signal running watchcat daemon to reload config (if it's already running)
         touch "$RELOAD_FLAG"
 
         # Clear auto-disabled flag if user is re-enabling
@@ -217,7 +217,12 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             rm -f "$DISABLED_FLAG"
         fi
 
-        qlog_info "Watchdog settings saved, reload flagged"
+        # Restart the qmanager service so procd picks up the new watchcat
+        # instance state (start if newly enabled, stop if disabled).
+        # This is async — the response returns immediately.
+        /etc/init.d/qmanager restart >/dev/null 2>&1 &
+
+        qlog_info "Watchdog settings saved, service restart triggered"
         echo '{"success":true}'
         exit 0
     fi

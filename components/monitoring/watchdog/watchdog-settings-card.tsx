@@ -34,12 +34,13 @@ import {
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertTriangleIcon, InfoIcon } from "lucide-react";
+import { Loader2, AlertTriangleIcon } from "lucide-react";
 import type {
   WatchdogSavePayload,
   UseWatchdogSettingsReturn,
 } from "@/hooks/use-watchdog-settings";
 import { Separator } from "@/components/ui/separator";
+import { TbInfoCircleFilled } from "react-icons/tb";
 
 type WatchdogSettingsCardProps = Pick<
   UseWatchdogSettingsReturn,
@@ -460,10 +461,16 @@ function WatchdogSettingsForm({
                 </Field>
 
                 <Field orientation="horizontal" className="w-fit">
-                  <div className="flex items-center justify-center gap-x-2">
+                  <div className="flex items-center gap-1.5">
                     <Tooltip>
                       <TooltipTrigger>
-                        <InfoIcon className="size-4" />
+                        <button
+                          type="button"
+                          className="inline-flex"
+                          aria-label="More info"
+                        >
+                          <TbInfoCircleFilled className="size-5 text-info" />
+                        </button>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>
