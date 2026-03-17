@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,6 @@ export default function LoginComponent() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [retryAfter, setRetryAfter] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isSetup = status === "setup_required";
 
@@ -33,25 +32,14 @@ export default function LoginComponent() {
 
   // Rate limit countdown timer
   useEffect(() => {
-    if (retryAfter <= 0) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      return;
-    }
+    if (retryAfter <= 0) return;
 
-    timerRef.current = setInterval(() => {
-      setRetryAfter((prev) => {
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
+    const id = setInterval(() => {
+      setRetryAfter((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [retryAfter > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => clearInterval(id);
+  }, [retryAfter]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {

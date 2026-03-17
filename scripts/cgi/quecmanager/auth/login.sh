@@ -22,7 +22,14 @@ if [ "$REQUEST_METHOD" != "POST" ]; then
     cgi_method_not_allowed
 fi
 
-cgi_read_post
+# Read POST body inline (not via cgi_read_post, to defer headers)
+if [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" -gt 0 ] 2>/dev/null; then
+    POST_DATA=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null)
+else
+    cgi_headers
+    cgi_error "no_body" "POST body is empty"
+    exit 0
+fi
 
 _password=$(printf '%s' "$POST_DATA" | jq -r '.password // empty')
 _confirm=$(printf '%s' "$POST_DATA" | jq -r '.confirm // empty')
@@ -70,10 +77,8 @@ if is_setup_required; then
 fi
 
 # ---------------------------------------------------------------------------
-# Normal login
+# Normal login — rate limit check BEFORE emitting headers
 # ---------------------------------------------------------------------------
-
-# Check rate limit — must happen BEFORE cgi_headers to emit 429 status
 if ! qm_check_rate_limit; then
     echo "Status: 429 Too Many Requests"
     cgi_headers
@@ -82,6 +87,7 @@ if ! qm_check_rate_limit; then
     exit 0
 fi
 
+# Past rate limit — emit standard 200 headers
 cgi_headers
 
 # Verify password

@@ -55,9 +55,11 @@ qm_timing_safe_compare() {
         NR==1 { a=$0 }
         NR==2 {
             b=$0
-            if (length(a) != length(b)) { print 1; exit }
-            diff=0
-            for (i=1; i<=length(a); i++)
+            # Always iterate the longer string length — no early exit
+            len = length(a)
+            if (length(b) > len) len = length(b)
+            diff = (length(a) != length(b))
+            for (i=1; i<=len; i++)
                 if (substr(a,i,1) != substr(b,i,1)) diff=1
             print diff
         }')
@@ -70,8 +72,10 @@ qm_verify_password() {
     _input_password="$1"
     [ ! -f "$AUTH_CONFIG" ] && return 1
 
-    _stored_salt=$(jq -r '.salt // empty' "$AUTH_CONFIG" 2>/dev/null)
-    _stored_hash=$(jq -r '.hash // empty' "$AUTH_CONFIG" 2>/dev/null)
+    # Single jq call to read both fields (tab-separated)
+    _auth_fields=$(jq -r '[.salt // "", .hash // ""] | @tsv' "$AUTH_CONFIG" 2>/dev/null)
+    _stored_salt=$(printf '%s' "$_auth_fields" | cut -f1)
+    _stored_hash=$(printf '%s' "$_auth_fields" | cut -f2)
 
     [ -z "$_stored_salt" ] && return 1
     [ -z "$_stored_hash" ] && return 1
@@ -121,7 +125,12 @@ qm_validate_token() {
     [ -z "$_check_token" ] && return 1
     [ ! -f "$SESSION_FILE" ] && return 1
 
-    _session_token=$(jq -r '.token // empty' "$SESSION_FILE" 2>/dev/null)
+    # Single jq call to read all session fields (tab-separated)
+    _session_fields=$(jq -r '[.token // "", (.created // 0 | tostring), (.last_seen // 0 | tostring)] | @tsv' "$SESSION_FILE" 2>/dev/null)
+    _session_token=$(printf '%s' "$_session_fields" | cut -f1)
+    _created=$(printf '%s' "$_session_fields" | cut -f2)
+    _last_seen=$(printf '%s' "$_session_fields" | cut -f3)
+
     [ -z "$_session_token" ] && return 1
 
     # Compare tokens (timing-safe)
@@ -129,8 +138,6 @@ qm_validate_token() {
 
     # Check timeouts
     _now=$(date +%s)
-    _created=$(jq -r '.created // 0' "$SESSION_FILE" 2>/dev/null)
-    _last_seen=$(jq -r '.last_seen // 0' "$SESSION_FILE" 2>/dev/null)
 
     # Absolute timeout
     _age=$(( _now - _created ))
@@ -259,12 +266,7 @@ require_auth() {
     # Setup mode: allow access so frontend can detect it
     if is_setup_required; then
         echo "Status: 401 Unauthorized"
-        echo "Content-Type: application/json"
-        echo "Cache-Control: no-cache, no-store, must-revalidate"
-        echo "Access-Control-Allow-Origin: *"
-        echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
-        echo "Access-Control-Allow-Headers: Content-Type, Authorization"
-        echo ""
+        cgi_headers
         jq -n '{"success":false,"error":"setup_required","detail":"No password configured"}'
         exit 0
     fi
@@ -275,12 +277,7 @@ require_auth() {
     _token=$(_extract_bearer_token)
     if [ -z "$_token" ] || ! qm_validate_token "$_token"; then
         echo "Status: 401 Unauthorized"
-        echo "Content-Type: application/json"
-        echo "Cache-Control: no-cache, no-store, must-revalidate"
-        echo "Access-Control-Allow-Origin: *"
-        echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
-        echo "Access-Control-Allow-Headers: Content-Type, Authorization"
-        echo ""
+        cgi_headers
         jq -n '{"success":false,"error":"unauthorized","detail":"Invalid or missing authentication token"}'
         exit 0
     fi
