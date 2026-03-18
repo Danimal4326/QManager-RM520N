@@ -21,6 +21,13 @@ export default function LoginComponent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [retryAfter, setRetryAfter] = useState(0);
 
+  // Redirect to dedicated onboarding wizard when this is a fresh install
+  useEffect(() => {
+    if (status === "setup_required") {
+      window.location.href = "/setup/";
+    }
+  }, [status]);
+
   const isSetup = status === "setup_required";
 
   // Rate limit countdown timer

@@ -113,6 +113,40 @@ export function useLogin() {
 }
 
 // ---------------------------------------------------------------------------
+// Standalone setup (used by onboarding wizard — does NOT redirect on success)
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates the initial password and session without redirecting.
+ * Used by the onboarding wizard so it can advance steps instead of
+ * immediately sending the user to the dashboard.
+ */
+export async function setupPassword(
+  password: string,
+  confirm: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const resp = await fetch(LOGIN_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, confirm }),
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      return { success: true };
+    }
+
+    return {
+      success: false,
+      error: data.detail || data.error || "Setup failed",
+    };
+  } catch {
+    return { success: false, error: "Connection failed" };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Actions (used by sidebar menu / change password dialog)
 // ---------------------------------------------------------------------------
 

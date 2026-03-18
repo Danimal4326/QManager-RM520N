@@ -12,7 +12,9 @@
       "Bash(bunx --bun shadcn@latest add popover --overwrite)",
       "Bash(bunx --bun shadcn@latest add popover)",
       "Bash(bash .claude/check-crlf.sh scripts/install.sh)",
-      "Bash(bash .claude/check-crlf.sh scripts/install.sh scripts/uninstall.sh)"
+      "Bash(bash .claude/check-crlf.sh scripts/install.sh scripts/uninstall.sh)",
+      "Bash(xargs -I{} basename {})",
+      "Read(//c/Users/RUS-LEGION5/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/brainstorming/**)"
     ]
   }
 }
