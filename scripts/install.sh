@@ -460,7 +460,7 @@ enable_services() {
 
     # Auxiliary services
     for svc in qmanager_eth_link qmanager_ttl qmanager_mtu \
-               qmanager_wan_guard qmanager_imei_check; do
+               qmanager_imei_check; do
         if [ -x "$INITD_DIR/$svc" ]; then
             "$INITD_DIR/$svc" enable
             info "Enabled $svc"
