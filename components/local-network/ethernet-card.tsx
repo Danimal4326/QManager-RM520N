@@ -25,8 +25,9 @@ import {
 } from "@/components/ui/select";
 
 import { CgEthernet } from "react-icons/cg";
-import { RefreshCcwIcon, Loader2, AlertCircle } from "lucide-react";
+import { RefreshCcwIcon, Loader2, AlertCircle, CheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSaveFlash } from "@/components/ui/save-button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -48,6 +49,7 @@ const EthernetStatusCard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { saved, markSaved } = useSaveFlash();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const deviceRef = useRef<HTMLDivElement>(null);
@@ -128,6 +130,7 @@ const EthernetStatusCard = () => {
       if (!mountedRef.current) return;
 
       if (data.success) {
+        markSaved();
         toast.success("Link speed limit updated");
 
         // Recovery delay for link renegotiation
@@ -428,6 +431,11 @@ const EthernetStatusCard = () => {
                     <span className="flex items-center gap-2">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Applying...
+                    </span>
+                  ) : saved ? (
+                    <span className="flex items-center gap-2">
+                      <CheckIcon className="h-3 w-3" />
+                      Saved!
                     </span>
                   ) : (
                     <SelectValue placeholder="Select a link speed" />

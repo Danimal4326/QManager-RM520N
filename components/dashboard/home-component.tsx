@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { motion, type Variants } from "motion/react";
 import { useModemStatus } from "@/hooks/use-modem-status";
 import NetworkStatusComponent from "./network-status";
 import DeviceStatus from "./device-status";
@@ -10,6 +11,20 @@ import { SignalHistoryComponent } from "./signal-history";
 import RecentActivitiesComponent from "./recent-activities";
 import DeviceMetricsComponent from "./device-metrics";
 import LiveLatencyComponent from "./live-latency";
+
+const containerVariants: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.25, ease: "easeOut" },
+  },
+};
 
 const HomeComponent = () => {
   const { data, isLoading, isStale, error } = useModemStatus();
@@ -29,16 +44,25 @@ const HomeComponent = () => {
           isLoading={isLoading}
           isStale={isStale}
         />
-        <div className="grid grid-cols-1 @xl/main:grid-cols-2 grid-flow-row gap-4">
-          <LTEStatusComponent
-            data={data?.lte ?? null}
-            isLoading={isLoading}
-          />
-          <NrStatusComponent
-            data={data?.nr ?? null}
-            isLoading={isLoading}
-          />
-        </div>
+        <motion.div
+          className="grid grid-cols-1 @xl/main:grid-cols-2 grid-flow-row gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.div variants={itemVariants}>
+            <LTEStatusComponent
+              data={data?.lte ?? null}
+              isLoading={isLoading}
+            />
+          </motion.div>
+          <motion.div variants={itemVariants}>
+            <NrStatusComponent
+              data={data?.nr ?? null}
+              isLoading={isLoading}
+            />
+          </motion.div>
+        </motion.div>
       </div>
       <div className="@xl/main:col-span-2 @5xl/main:col-span-2 col-span-1 h-full *:data-[slot=card]:h-full">
         <DeviceStatus
@@ -48,20 +72,31 @@ const HomeComponent = () => {
       </div>
 
       <div className="col-span-1 xl:col-span-5">
-        <div className="grid grid-cols-1 @xl/main:grid-cols-2 @5xl/main:grid-cols-3 grid-flow-row gap-4">
-          <DeviceMetricsComponent
-            deviceData={data?.device ?? null}
-            trafficData={data?.traffic ?? null}
-            lteData={data?.lte ?? null}
-            nrData={data?.nr ?? null}
-            isLoading={isLoading}
-          />
-          <LiveLatencyComponent
-            connectivity={data?.connectivity ?? null}
-            isLoading={isLoading}
-          />
-          <RecentActivitiesComponent />
-        </div>
+        <motion.div
+          className="grid grid-cols-1 @xl/main:grid-cols-2 @5xl/main:grid-cols-3 grid-flow-row gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.div variants={itemVariants}>
+            <DeviceMetricsComponent
+              deviceData={data?.device ?? null}
+              trafficData={data?.traffic ?? null}
+              lteData={data?.lte ?? null}
+              nrData={data?.nr ?? null}
+              isLoading={isLoading}
+            />
+          </motion.div>
+          <motion.div variants={itemVariants}>
+            <LiveLatencyComponent
+              connectivity={data?.connectivity ?? null}
+              isLoading={isLoading}
+            />
+          </motion.div>
+          <motion.div variants={itemVariants}>
+            <RecentActivitiesComponent />
+          </motion.div>
+        </motion.div>
       </div>
 
       <div className="col-span-1 xl:col-span-5">

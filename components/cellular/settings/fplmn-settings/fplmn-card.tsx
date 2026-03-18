@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { authFetch } from "@/lib/auth-fetch";
 import {
@@ -178,54 +179,72 @@ const FPLMNCard = () => {
     <Card className="@container/card">
       {cardHeader}
       <CardContent>
-        {hasEntries ? (
-          <Empty className="bg-destructive/5 h-full">
-            <EmptyHeader>
-              <EmptyMedia variant="icon" className="bg-destructive rounded-xl">
-                <AlertTriangleIcon className="text-destructive-foreground size-6" />
-              </EmptyMedia>
-              <EmptyTitle>Blocked Networks Found</EmptyTitle>
-              <EmptyDescription className="max-w-xs text-pretty">
-                Your SIM has blocked one or more networks, which may prevent
-                connection. Clearing the list is recommended.
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Button
-                variant="destructive"
-                onClick={handleClear}
-                disabled={isClearing}
-              >
-                {isClearing ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Clearing...
-                  </>
-                ) : (
-                  "Clear Blocked Networks"
-                )}
-              </Button>
-            </EmptyContent>
-          </Empty>
-        ) : (
-          <Empty className="bg-muted/30 h-full">
-            <EmptyHeader>
-              <EmptyMedia variant="icon" className="bg-primary rounded-xl">
-                <CircleCheckIcon className="text-primary-foreground size-6" />
-              </EmptyMedia>
-              <EmptyTitle>No Blocked Networks</EmptyTitle>
-              <EmptyDescription className="max-w-xs text-pretty">
-                Your SIM has no blocked networks. No action needed.
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Button variant="outline" onClick={() => fetchStatus()}>
-                <RefreshCcwIcon />
-                Refresh Status
-              </Button>
-            </EmptyContent>
-          </Empty>
-        )}
+        <AnimatePresence mode="wait">
+          {hasEntries ? (
+            <motion.div
+              key="detected"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <Empty className="bg-destructive/5 h-full">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon" className="bg-destructive rounded-xl">
+                    <AlertTriangleIcon className="text-destructive-foreground size-6" />
+                  </EmptyMedia>
+                  <EmptyTitle>Blocked Networks Found</EmptyTitle>
+                  <EmptyDescription className="max-w-xs text-pretty">
+                    Your SIM has blocked one or more networks, which may prevent
+                    connection. Clearing the list is recommended.
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <Button
+                    variant="destructive"
+                    onClick={handleClear}
+                    disabled={isClearing}
+                  >
+                    {isClearing ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Clearing...
+                      </>
+                    ) : (
+                      "Clear Blocked Networks"
+                    )}
+                  </Button>
+                </EmptyContent>
+              </Empty>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="clean"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <Empty className="bg-muted/30 h-full">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon" className="bg-primary rounded-xl">
+                    <CircleCheckIcon className="text-primary-foreground size-6" />
+                  </EmptyMedia>
+                  <EmptyTitle>No Blocked Networks</EmptyTitle>
+                  <EmptyDescription className="max-w-xs text-pretty">
+                    Your SIM has no blocked networks. No action needed.
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <Button variant="outline" onClick={() => fetchStatus()}>
+                    <RefreshCcwIcon />
+                    Refresh Status
+                  </Button>
+                </EmptyContent>
+              </Empty>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </CardContent>
     </Card>
   );

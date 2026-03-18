@@ -18,6 +18,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { motion } from "motion/react";
 
 interface EmptyProfileViewProps {
   onRefresh?: () => void;
@@ -25,6 +26,11 @@ interface EmptyProfileViewProps {
 
 const EmptyProfileViewComponent = ({ onRefresh }: EmptyProfileViewProps) => {
   return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
     <Card className="@container/card">
       <CardHeader>
         <CardTitle>Saved Profiles</CardTitle>
@@ -55,6 +61,7 @@ const EmptyProfileViewComponent = ({ onRefresh }: EmptyProfileViewProps) => {
         </Empty>
       </CardContent>
     </Card>
+    </motion.div>
   );
 };
 

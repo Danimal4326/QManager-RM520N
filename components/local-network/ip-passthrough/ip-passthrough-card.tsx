@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -32,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, RotateCcwIcon } from "lucide-react";
+import { RotateCcwIcon } from "lucide-react";
 
 import { useIpPassthrough } from "@/hooks/use-ip-passthrough";
 import type {
@@ -75,6 +76,7 @@ const IPPassthroughCard = () => {
     saveSettings,
     refresh,
   } = useIpPassthrough();
+  const { saved, markSaved } = useSaveFlash();
 
   // Local form state — NatMode and UsbModeLocal use descriptive strings to
   // avoid Radix Select treating "0" as falsy and showing the placeholder
@@ -166,6 +168,7 @@ const IPPassthroughCard = () => {
     });
 
     if (success) {
+      markSaved();
       toast.success("Settings applied — device is rebooting…");
     } else {
       toast.error("Failed to save IP Passthrough settings");
@@ -441,16 +444,12 @@ const IPPassthroughCard = () => {
           </div>
 
           <div className="flex items-center gap-x-2">
-            <Button type="submit" disabled={isSaving || !macValid}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Applying…
-                </>
-              ) : (
-                "Save Settings"
-              )}
-            </Button>
+            <SaveButton
+              type="submit"
+              isSaving={isSaving}
+              saved={saved}
+              disabled={!macValid}
+            />
             <Button
               type="button"
               variant="outline"

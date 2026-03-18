@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 
 import {
   Card,
@@ -67,6 +68,7 @@ const TowerLockingSettingsComponent = ({
   // Local state for threshold input
   const [thresholdInput, setThresholdInput] = useState<string>("");
   const [isSavingThreshold, setIsSavingThreshold] = useState(false);
+  const { saved: thresholdSaved, markSaved: markThresholdSaved } = useSaveFlash();
 
   // Sync threshold from config (adjust state during render)
   const [prevThreshold, setPrevThreshold] = useState<number | undefined>(
@@ -92,9 +94,10 @@ const TowerLockingSettingsComponent = ({
     const ok = await onThresholdChange(val);
     setIsSavingThreshold(false);
     if (ok) {
+      markThresholdSaved();
       toast.success("Failover threshold updated");
     }
-  }, [thresholdInput, onThresholdChange]);
+  }, [thresholdInput, onThresholdChange, markThresholdSaved]);
 
   // --- Determine which RSRP to use based on network type ---
   const networkType = modemData?.network?.type ?? "";
@@ -534,19 +537,16 @@ const TowerLockingSettingsComponent = ({
                   <PercentIcon />
                 </InputGroupAddon>
               </InputGroup>
-              {thresholdDirty && (
-                <Button
+              {(thresholdDirty || thresholdSaved) && (
+                <SaveButton
                   size="sm"
                   className="h-8"
-                  disabled={isSavingThreshold || (thresholdInput !== "" && (isNaN(Number(thresholdInput)) || Number(thresholdInput) < 0 || Number(thresholdInput) > 100))}
+                  isSaving={isSavingThreshold}
+                  saved={thresholdSaved}
+                  label="Update"
+                  disabled={thresholdInput !== "" && (isNaN(Number(thresholdInput)) || Number(thresholdInput) < 0 || Number(thresholdInput) > 100)}
                   onClick={handleThresholdSave}
-                >
-                  {isSavingThreshold ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    "Update"
-                  )}
-                </Button>
+                />
               )}
             </div>
             {thresholdInput !== "" && (isNaN(Number(thresholdInput)) || Number(thresholdInput) < 0 || Number(thresholdInput) > 100) && (

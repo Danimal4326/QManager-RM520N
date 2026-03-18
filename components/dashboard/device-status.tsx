@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion, type Variants } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -8,6 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 
 import type { DeviceStatus } from "@/types/modem-status";
+
+const containerVariants: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.25, ease: "easeOut" },
+  },
+};
 
 interface DeviceStatusComponentProps {
   data: DeviceStatus | null;
@@ -112,9 +127,14 @@ const DeviceStatusComponent = ({
                 )}
               </Button>
             </div>
-            <dl className="grid divide-y divide-border border-y border-border">
+            <motion.dl
+              className="grid divide-y divide-border border-y border-border"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
               {rows.map((row) => (
-                <div key={row.label} className="flex items-center justify-between py-2">
+                <motion.div key={row.label} variants={itemVariants} className="flex items-center justify-between py-2">
                   <dt className="font-semibold text-muted-foreground xl:text-base text-sm">
                     {row.label}
                   </dt>
@@ -125,9 +145,9 @@ const DeviceStatusComponent = ({
                   >
                     {hidePrivate && row.private ? "••••••••••••" : row.value}
                   </dd>
-                </div>
+                </motion.div>
               ))}
-            </dl>
+            </motion.dl>
           </div>
         </div>
       </CardContent>
