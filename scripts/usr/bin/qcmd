@@ -32,6 +32,7 @@ PID_FILE="/var/lock/qmanager.pid"
 
 SHORT_TIMEOUT=3        # seconds for normal AT commands
 LONG_TIMEOUT=240       # seconds for AT+QSCAN and similar (passed to sms_tool -t)
+LONG_SAFETY_TIMEOUT=260 # outer timeout safety net (20s beyond LONG_TIMEOUT)
 LOCK_WAIT_SHORT=5      # seconds to wait for lock (normal commands)
 LOCK_WAIT_LONG=10      # seconds to wait for lock (long commands)
 
@@ -163,7 +164,8 @@ if is_long_command "$COMMAND"; then
             sms_tool at "AT" > /dev/null 2>&1 || exit 3
 
             # Real command with explicit native timeout (sms_tool -t)
-            sms_tool -t "$LONG_TIMEOUT" at "$COMMAND" 2>/dev/null
+            # Outer timeout is a safety net in case sms_tool hangs
+            timeout "$LONG_SAFETY_TIMEOUT" sms_tool -t "$LONG_TIMEOUT" at "$COMMAND" 2>/dev/null
             cmd_rc=$?
             rm -f "$PID_FILE"
             exit $cmd_rc
@@ -180,13 +182,18 @@ if is_long_command "$COMMAND"; then
             output_result "$result" ""
             ;;
         2)
-            qlog_lock "timeout" "long command: ${COMMAND}"
+            qlog_error "Lock acquisition failed for: ${COMMAND}"
             output_result "" "modem_busy"
             exit 1
             ;;
         3)
             qlog_error "Modem warm-up failed before: ${COMMAND}"
             output_result "" "modem_not_ready"
+            exit 1
+            ;;
+        143)
+            qlog_error "Long command killed by safety timeout: ${COMMAND}"
+            output_result "" "command_timeout"
             exit 1
             ;;
         *)
