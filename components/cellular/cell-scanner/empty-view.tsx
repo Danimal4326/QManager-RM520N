@@ -23,8 +23,7 @@ const ScannerEmptyView = ({ onStartScan }: ScannerEmptyViewProps) => {
         </EmptyMedia>
         <EmptyTitle>No Scan Results</EmptyTitle>
         <EmptyDescription>
-          No scan results yet. Run a scan to discover nearby towers and
-          networks.
+          Discover nearby towers across all carriers and bands.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>

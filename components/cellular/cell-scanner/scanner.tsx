@@ -3,20 +3,18 @@
 import { useCallback, useState } from "react";
 import { authFetch } from "@/lib/auth-fetch";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import ScannerEmptyView from "./empty-view";
 import ScanResultView from "./scan-result";
 import type { CellScanResult } from "./scan-result";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, LoaderCircleIcon, RefreshCcwIcon } from "lucide-react";
+import {
+  AlertCircle,
+  DownloadIcon,
+  LoaderCircleIcon,
+  RefreshCcwIcon,
+} from "lucide-react";
 import { useCellScanner } from "@/hooks/use-cell-scanner";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { downloadCSV } from "@/lib/download-csv";
 import { ScanningView } from "./scanning-view";
@@ -124,39 +122,29 @@ const FullScannerComponent = () => {
   return (
     <>
       <Card className="@container/card">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Cell Scanner</CardTitle>
-              <CardDescription>
-                Scan and display available cellular networks and towers.
-              </CardDescription>
-            </div>
-            {isScanning && (
-              <Badge
-                variant="outline"
-                className="text-primary border-primary/50"
-              >
-                <LoaderCircleIcon className="h-3 w-3 animate-spin" />
-                Scanning...
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="grid gap-4">
             {hasScanResults ? (
               <ScanResultView data={results} onLockCell={handleLockCell} />
             ) : isScanning ? (
               <ScanningView elapsedSeconds={elapsedSeconds} />
             ) : status === "error" ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-                <p className="text-destructive text-sm">
-                  {error || "Scan failed"}
-                </p>
+              <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+                <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertCircle className="size-5 text-destructive" />
+                </div>
+                <div className="max-w-xs space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {error || "Scan failed"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    The modem may be busy or unreachable. Check your connection
+                    and try again.
+                  </p>
+                </div>
                 <Button onClick={startScan} variant="outline" size="sm">
                   <RefreshCcwIcon className="size-4" />
-                  Retry
+                  Retry Scan
                 </Button>
               </div>
             ) : (
