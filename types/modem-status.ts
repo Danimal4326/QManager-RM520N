@@ -81,6 +81,8 @@ export type NetworkType = "LTE" | "5G-NSA" | "5G-SA" | "";
 // --- Sub-Interfaces ----------------------------------------------------------
 
 export interface NetworkStatus {
+  /** Radio functionality level from AT+CFUN? (0=off, 1=normal, 4=RF off) */
+  cfun?: number;
   /** Current access technology: LTE, 5G-NSA, 5G-SA */
   type: NetworkType;
   /** Active SIM slot (1 or 2) */
@@ -487,7 +489,8 @@ export type NetworkEventType =
   | "packet_loss_recovered" // Packet loss returned below threshold
   | "watchcat_recovery"   // Watchcat executed a recovery action (Tier 1-4)
   | "sim_failover"        // SIM failover event (Tier 3 switch/fallback)
-  | "sim_swap_detected";  // Physical SIM card swap detected at boot
+  | "sim_swap_detected"   // Physical SIM card swap detected at boot
+  | "airplane_mode";      // Airplane mode enabled/disabled (CFUN changed)
 
 /** Severity level for UI icon coloring */
 export type EventSeverity = "info" | "warning" | "error";

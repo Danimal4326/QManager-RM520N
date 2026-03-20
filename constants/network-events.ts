@@ -19,6 +19,7 @@ export const EVENT_LABELS: Record<NetworkEventType, string> = {
   watchcat_recovery: "Watchdog Recovery",
   sim_failover: "SIM Failover",
   sim_swap_detected: "SIM Swap Detected",
+  airplane_mode: "Airplane Mode",
 };
 
 /** Tab categories used by the monitoring Network Events card */
@@ -44,4 +45,5 @@ export const EVENT_TAB_CATEGORIES: Record<NetworkEventType, EventTabCategory> =
     watchcat_recovery: "dataConnection",
     sim_failover: "dataConnection",
     sim_swap_detected: "dataConnection",
+    airplane_mode: "networkMode",
   };

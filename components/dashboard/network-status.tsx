@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CardSimIcon } from "lucide-react";
+import { CardSimIcon, Plane } from "lucide-react";
 
 import {
   MdOutline5G,
@@ -178,8 +178,11 @@ const NetworkStatusComponent = ({
   const serviceColor = getServiceColor(networkType, caActive, serviceStatus);
   const serviceColors = serviceColorMap[serviceColor] ?? serviceColorMap.red;
 
-  // Radio is ON when the modem is reachable (AT+CFUN=1 implied by modem responding)
-  const radioOn = modemReachable;
+  // Airplane mode: CFUN=0 (radio off) or CFUN=4 (RF off)
+  const isAirplaneMode = data?.cfun === 0 || data?.cfun === 4;
+
+  // Radio is ON when the modem is reachable and not in airplane mode
+  const radioOn = modemReachable && !isAirplaneMode;
 
   // Service is active when we have a good service status
   const isServiceActive =
@@ -219,19 +222,31 @@ const NetworkStatusComponent = ({
                 </Badge>
               )}
 
-              {/* Radio status — based on modem reachability */}
+              {/* Radio status — based on modem reachability + CFUN */}
               <Badge
                 variant="outline"
                 className={
-                  radioOn
-                    ? "bg-success/15 text-success hover:bg-success/20 border-success/30"
-                    : "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30"
+                  isAirplaneMode
+                    ? "bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
+                    : radioOn
+                      ? "bg-success/15 text-success hover:bg-success/20 border-success/30"
+                      : "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30"
                 }
               >
                 <div
-                  className={`w-2 h-2 rounded-full ${radioOn ? "bg-success" : "bg-destructive"}`}
+                  className={`w-2 h-2 rounded-full ${
+                    isAirplaneMode
+                      ? "bg-warning"
+                      : radioOn
+                        ? "bg-success"
+                        : "bg-destructive"
+                  }`}
                 />
-                {radioOn ? "Radio On" : "Radio Off"}
+                {isAirplaneMode
+                  ? "Airplane Mode"
+                  : radioOn
+                    ? "Radio On"
+                    : "Radio Off"}
               </Badge>
 
               {/* Internet status — green/red/gray based on ping daemon */}
@@ -321,8 +336,16 @@ const NetworkStatusComponent = ({
           ) : (
             <div className="grid gap-2">
               <div className="relative">
-                <div className="rounded-full size-36 bg-primary/15 flex items-center justify-center p-4">
-                  <CardSimIcon className="size-full text-primary" />
+                <div
+                  className={`rounded-full size-36 flex items-center justify-center p-4 ${
+                    isAirplaneMode ? "bg-muted" : "bg-primary/15"
+                  }`}
+                >
+                  {isAirplaneMode ? (
+                    <Plane className="size-full text-muted-foreground" />
+                  ) : (
+                    <CardSimIcon className="size-full text-primary" />
+                  )}
                 </div>
                 <div
                   className={`absolute top-1 right-4 size-6 rounded-full flex items-center justify-center shadow-md ${
@@ -341,7 +364,9 @@ const NetworkStatusComponent = ({
                   SIM {simSlot}
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  {carrier || "No Carrier"}
+                  {isAirplaneMode
+                    ? "Airplane Mode"
+                    : carrier || "No Carrier"}
                 </p>
               </div>
             </div>
