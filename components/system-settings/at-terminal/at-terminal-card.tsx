@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/input-group";
 import { authFetch } from "@/lib/auth-fetch";
 import CommandsPopover from "@/components/system-settings/at-terminal/commands-popover";
+import SignalStormGame from "@/components/system-settings/at-terminal/signal-storm-game";
 
 // --- Types ---
 
@@ -109,6 +110,7 @@ export default function ATTerminalCard() {
   const [isLoading, setIsLoading] = useState(false);
   const [warning, setWarning] = useState<Warning | null>(null);
   const [lastCommand, setLastCommand] = useState("");
+  const [gameActive, setGameActive] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
 
   const suggestions = useMemo(() => {
@@ -201,6 +203,18 @@ export default function ATTerminalCard() {
       const trimmed = input.trim();
       if (!trimmed || isLoading) return;
 
+      // Easter egg
+      if (trimmed.toUpperCase() === "AT+GAME") {
+        appendEntry({
+          command: trimmed,
+          response: "Initializing Signal Storm...",
+          status: "success",
+        });
+        setInput("");
+        setTimeout(() => setGameActive(true), 500);
+        return;
+      }
+
       // Check blocked commands
       for (const rule of BLOCKED_COMMANDS) {
         if (rule.pattern.test(trimmed)) {
@@ -290,7 +304,7 @@ export default function ATTerminalCard() {
   );
 
   const isEmpty = history.length === 0;
-  const inputDisabled = isLoading || warning !== null;
+  const inputDisabled = isLoading || warning !== null || gameActive;
 
   return (
     <Card className="overflow-hidden gap-0 py-0">
@@ -301,85 +315,89 @@ export default function ATTerminalCard() {
           AT Terminal
         </span>
         <div className="ml-auto flex gap-1">
-          <CommandsPopover onSelect={setInput} inputRef={inputRef} />
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={handleClear}
-            disabled={isEmpty}
-          >
-            <Trash2Icon />
-            Clear
-          </Button>
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={handleExport}
-            disabled={isEmpty}
-          >
-            <DownloadIcon />
-            Export
-          </Button>
+          {gameActive ? (
+            <span className="text-muted-foreground text-xs italic">
+              Playing Signal Storm... (Esc to exit)
+            </span>
+          ) : (
+            <>
+              <CommandsPopover onSelect={setInput} inputRef={inputRef} />
+              <Button variant="ghost" size="xs" onClick={handleClear} disabled={isEmpty}>
+                <Trash2Icon />
+                Clear
+              </Button>
+              <Button variant="ghost" size="xs" onClick={handleExport} disabled={isEmpty}>
+                <DownloadIcon />
+                Export
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* History area */}
-      <div
-        className="max-h-[60vh] min-h-48 overflow-y-auto px-4 py-3"
-        aria-live="polite"
-      >
-        {isEmpty ? (
-          <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
-            No commands yet. Type an AT command below.
+      {gameActive ? (
+        <SignalStormGame onExit={() => setGameActive(false)} />
+      ) : (
+        <>
+          {/* History area */}
+          <div
+            className="max-h-[60vh] min-h-48 overflow-y-auto px-4 py-3"
+            aria-live="polite"
+          >
+            {isEmpty ? (
+              <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
+                No commands yet. Type an AT command below.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {history.map((entry) => (
+                  <HistoryEntryRow key={entry.id} entry={entry} />
+                ))}
+                <div ref={historyEndRef} />
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="space-y-3">
-            {history.map((entry) => (
-              <HistoryEntryRow key={entry.id} entry={entry} />
-            ))}
-            <div ref={historyEndRef} />
-          </div>
-        )}
-      </div>
 
-      {/* Suggestion hint */}
-      {suggestions.length > 0 && !warning && (
-        <div className="flex items-center gap-1.5 px-4 pb-1.5">
-          <span className="font-mono text-sm text-muted-foreground/40 italic">
-            {suggestions[suggestionIndex % suggestions.length]}
-          </span>
-          <kbd className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground/35">
-            Tab
-          </kbd>
-        </div>
-      )}
+          {/* Suggestion hint */}
+          {suggestions.length > 0 && !warning && (
+            <div className="flex items-center gap-1.5 px-4 pb-1.5">
+              <span className="font-mono text-sm text-muted-foreground/40 italic">
+                {suggestions[suggestionIndex % suggestions.length]}
+              </span>
+              <kbd className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground/35">
+                Tab
+              </kbd>
+            </div>
+          )}
 
-      {/* Warning banner */}
-      {warning && (
-        <div className="mx-3 mb-2 rounded-lg border border-warning/30 bg-warning/10 p-3">
-          <div className="text-warning mb-1 flex items-center gap-1.5 text-sm font-semibold">
-            <TriangleAlertIcon className="size-4" />
-            Warning
-          </div>
-          <p className="text-muted-foreground mb-2 text-sm">
-            <code className="bg-warning/10 rounded px-1 py-0.5 text-xs">
-              {warning.command}
-            </code>{" "}
-            {warning.message}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              size="xs"
-              className="bg-warning text-warning-foreground hover:bg-warning/90"
-              onClick={handleSendAnyway}
-            >
-              Send Anyway
-            </Button>
-            <Button variant="outline" size="xs" onClick={handleCancelWarning}>
-              Cancel
-            </Button>
-          </div>
-        </div>
+          {/* Warning banner */}
+          {warning && (
+            <div className="mx-3 mb-2 rounded-lg border border-warning/30 bg-warning/10 p-3">
+              <div className="text-warning mb-1 flex items-center gap-1.5 text-sm font-semibold">
+                <TriangleAlertIcon className="size-4" />
+                Warning
+              </div>
+              <p className="text-muted-foreground mb-2 text-sm">
+                <code className="bg-warning/10 rounded px-1 py-0.5 text-xs">
+                  {warning.command}
+                </code>{" "}
+                {warning.message}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="xs"
+                  className="bg-warning text-warning-foreground hover:bg-warning/90"
+                  onClick={handleSendAnyway}
+                >
+                  Send Anyway
+                </Button>
+                <Button variant="outline" size="xs" onClick={handleCancelWarning}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Input bar */}
