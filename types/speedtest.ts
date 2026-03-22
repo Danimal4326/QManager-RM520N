@@ -128,11 +128,31 @@ export interface SpeedtestServer {
   ip: string;
 }
 
+// --- Server List Types -------------------------------------------------------
+
+/** A nearby server from `speedtest --servers -f json` */
+export interface SpeedtestServerEntry {
+  id: number;
+  host: string;
+  port: number;
+  name: string;
+  location: string;
+  country: string;
+}
+
 // --- CGI Response Types -----------------------------------------------------
 
 /** GET /cgi-bin/.../speedtest_check.sh */
 export interface SpeedtestCheckResponse {
   available: boolean;
+}
+
+/** GET /cgi-bin/.../speedtest_servers.sh */
+export interface SpeedtestServersResponse {
+  success: boolean;
+  servers?: SpeedtestServerEntry[];
+  error?: string;
+  detail?: string;
 }
 
 /** POST /cgi-bin/.../speedtest_start.sh */

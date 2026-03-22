@@ -6,6 +6,8 @@ import type {
   SpeedtestStatusResponse,
   SpeedtestFinalResult,
   SpeedtestProgressLine,
+  SpeedtestServerEntry,
+  SpeedtestServersResponse,
 } from "@/types/speedtest";
 
 // =============================================================================
@@ -49,10 +51,20 @@ export interface UseSpeedtestReturn {
   error: string | null;
   /** Whether a test is actively running */
   isRunning: boolean;
+  /** Nearby servers available for selection */
+  servers: SpeedtestServerEntry[];
+  /** Currently selected server ID (null = automatic) */
+  selectedServer: number | null;
+  /** Whether servers are being fetched */
+  isLoadingServers: boolean;
   /** Start a new speedtest */
   start: () => Promise<void>;
   /** Refresh status (detect if a test is running from another tab) */
   refreshStatus: () => Promise<void>;
+  /** Fetch nearby servers */
+  fetchServers: () => Promise<void>;
+  /** Set server selection (null = automatic) */
+  setSelectedServer: (id: number | null) => void;
 }
 
 export function useSpeedtest(): UseSpeedtestReturn {
@@ -63,6 +75,9 @@ export function useSpeedtest(): UseSpeedtestReturn {
     useState<SpeedtestProgressLine | null>(null);
   const [result, setResult] = useState<SpeedtestFinalResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [servers, setServers] = useState<SpeedtestServerEntry[]>([]);
+  const [selectedServer, setSelectedServer] = useState<number | null>(null);
+  const [isLoadingServers, setIsLoadingServers] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
@@ -99,6 +114,26 @@ export function useSpeedtest(): UseSpeedtestReturn {
       }
     };
     check();
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Fetch nearby servers
+  // ---------------------------------------------------------------------------
+  const fetchServers = useCallback(async () => {
+    setIsLoadingServers(true);
+    try {
+      const resp = await authFetch(`${CGI_BASE}/speedtest_servers.sh`);
+      if (!resp.ok) return;
+      const data: SpeedtestServersResponse = await resp.json();
+      if (!mountedRef.current) return;
+      if (data.success && data.servers) {
+        setServers(data.servers);
+      }
+    } catch {
+      // Non-fatal — user can still run with auto-select
+    } finally {
+      if (mountedRef.current) setIsLoadingServers(false);
+    }
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -191,10 +226,15 @@ export function useSpeedtest(): UseSpeedtestReturn {
     setCurrentProgress(null);
 
     try {
+      const body: Record<string, unknown> = {};
+      if (selectedServer !== null) {
+        body.server_id = selectedServer;
+      }
+
       const resp = await authFetch(`${CGI_BASE}/speedtest_start.sh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: "{}",
+        body: JSON.stringify(body),
       });
 
       if (!resp.ok) {
@@ -227,7 +267,7 @@ export function useSpeedtest(): UseSpeedtestReturn {
         );
       }
     }
-  }, [startPolling]);
+  }, [startPolling, selectedServer]);
 
   // ---------------------------------------------------------------------------
   // Refresh status — called on dialog open to detect in-progress tests
@@ -268,7 +308,12 @@ export function useSpeedtest(): UseSpeedtestReturn {
       phase === "ping" ||
       phase === "download" ||
       phase === "upload",
+    servers,
+    selectedServer,
+    isLoadingServers,
     start,
     refreshStatus,
+    fetchServers,
+    setSelectedServer,
   };
 }

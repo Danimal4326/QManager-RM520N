@@ -36,6 +36,17 @@ if [ "$REQUEST_METHOD" != "POST" ]; then
     exit 0
 fi
 
+# --- Read optional server_id from POST body ---------------------------------
+cgi_read_post
+SERVER_ID=""
+if [ -n "$POST_DATA" ]; then
+    SERVER_ID=$(printf '%s' "$POST_DATA" | jq -r '.server_id // empty')
+fi
+# Validate server_id is a plain integer (Ookla IDs are always numeric)
+case "$SERVER_ID" in
+    ''|*[!0-9]*) SERVER_ID="" ;;
+esac
+
 # --- Check: speedtest-cli installed? -----------------------------------------
 if ! command -v speedtest >/dev/null 2>&1; then
     qlog_error "Speedtest binary not found"
@@ -104,12 +115,18 @@ exec __SPEEDTEST_BIN__ \
     -f json \
     -p yes \
     --progress-update-interval=250 \
+    __SERVER_FLAG__ \
     > /tmp/qmanager_speedtest_output \
     2> /tmp/qmanager_speedtest_error
 WEOF
 
-# Patch in the resolved speedtest binary path
+# Patch in the resolved speedtest binary path and optional server flag
 sed -i "s|__SPEEDTEST_BIN__|${SPEEDTEST_BIN}|" "$WRAPPER_SCRIPT"
+if [ -n "$SERVER_ID" ]; then
+    sed -i "s|__SERVER_FLAG__|-s ${SERVER_ID}|" "$WRAPPER_SCRIPT"
+else
+    sed -i "s|__SERVER_FLAG__||" "$WRAPPER_SCRIPT"
+fi
 
 chmod +x "$WRAPPER_SCRIPT"
 

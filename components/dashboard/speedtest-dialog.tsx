@@ -12,6 +12,14 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
   ArrowDown,
   ArrowUp,
   Activity,
@@ -21,6 +29,7 @@ import {
   Loader2,
   TriangleAlert,
   Play,
+  RefreshCwIcon,
 } from "lucide-react";
 import { useSpeedtest, type SpeedtestPhase } from "@/hooks/use-speedtest";
 import { bytesToMbps, formatSpeed, formatBytes } from "@/types/speedtest";
@@ -287,16 +296,22 @@ export function SpeedtestDialog({ open, onOpenChange }: SpeedtestDialogProps) {
     result,
     error,
     isRunning,
+    servers,
+    selectedServer,
+    isLoadingServers,
     start,
     refreshStatus,
+    fetchServers,
+    setSelectedServer,
   } = useSpeedtest();
 
-  // On dialog open: check if a test is already in progress (from another tab)
+  // On dialog open: check status and fetch nearby servers
   useEffect(() => {
     if (open) {
       refreshStatus();
+      fetchServers();
     }
-  }, [open, refreshStatus]);
+  }, [open, refreshStatus, fetchServers]);
 
   // Prevent closing while test is running
   const handleOpenChange = (newOpen: boolean) => {
@@ -342,6 +357,52 @@ export function SpeedtestDialog({ open, onOpenChange }: SpeedtestDialogProps) {
               <p className="text-sm text-muted-foreground text-center">
                 Measure your current download speed, upload speed, and latency.
               </p>
+
+              {/* Server selection */}
+              <div className="w-full space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Server</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    onClick={fetchServers}
+                    disabled={isLoadingServers}
+                    aria-label="Refresh server list"
+                  >
+                    <RefreshCwIcon className={`size-3.5 ${isLoadingServers ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+                {isLoadingServers && servers.length === 0 ? (
+                  <Skeleton className="h-9 w-full" />
+                ) : (
+                  <Select
+                    value={selectedServer === null ? "auto" : String(selectedServer)}
+                    onValueChange={(value) =>
+                      setSelectedServer(value === "auto" ? null : Number(value))
+                    }
+                  >
+                    <SelectTrigger className="w-full" aria-label="Select server">
+                      <SelectValue placeholder="Automatic (nearest)" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl max-h-64">
+                      <SelectItem value="auto" className="rounded-lg">
+                        Automatic (nearest)
+                      </SelectItem>
+                      {servers.map((s) => (
+                        <SelectItem
+                          key={s.id}
+                          value={String(s.id)}
+                          className="rounded-lg"
+                        >
+                          {s.name} — {s.location}, {s.country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
               <Button onClick={start} disabled={!isAvailable} className="gap-2">
                 <Play className="size-4" />
                 Run Speed Test
