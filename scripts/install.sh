@@ -303,36 +303,30 @@ backup_originals() {
 
     mkdir -p "$BACKUP_DIR"
 
-    local ts
-    ts=$(date +%Y%m%d_%H%M%S)
-
-    # Backup original index.html (the OpenWRT/LuCI default page)
-    if [ -f "$WWW_ROOT/index.html" ]; then
-        # Only backup if it's NOT already a QManager index.html
-        # (avoid backing up our own file on upgrades)
+    # Backup original index.html in-place (first install only)
+    # On upgrades, index.html.old already exists — don't overwrite it
+    if [ ! -f "$WWW_ROOT/index.html.old" ] && [ -f "$WWW_ROOT/index.html" ]; then
         if ! grep -q "QManager" "$WWW_ROOT/index.html" 2>/dev/null; then
-            cp "$WWW_ROOT/index.html" "$BACKUP_DIR/index.html.orig.$ts"
-            info "Backed up original index.html → $BACKUP_DIR/index.html.orig.$ts"
+            mv "$WWW_ROOT/index.html" "$WWW_ROOT/index.html.old"
+            info "Backed up original index.html → index.html.old"
         else
             info "Existing index.html is already QManager — skipping backup"
         fi
-
-        # Always keep a single .orig if we don't have one yet
-        if [ ! -f "$BACKUP_DIR/index.html.orig" ]; then
-            cp "$WWW_ROOT/index.html" "$BACKUP_DIR/index.html.orig"
-            info "Saved pristine backup as $BACKUP_DIR/index.html.orig"
-        fi
+    elif [ -f "$WWW_ROOT/index.html.old" ]; then
+        info "Original index.html.old already preserved — skipping"
     else
         info "No existing index.html to backup"
     fi
 
     # Backup existing QManager config if upgrading
     if [ -f "$CONF_DIR/shadow" ]; then
+        local ts
+        ts=$(date +%Y%m%d_%H%M%S)
         cp "$CONF_DIR/shadow" "$BACKUP_DIR/shadow.$ts" 2>/dev/null || true
         info "Backed up password hash"
     fi
 
-    info "Backups stored in $BACKUP_DIR"
+    info "Backups complete"
 }
 
 # --- Install Frontend --------------------------------------------------------
@@ -344,11 +338,11 @@ install_frontend() {
     file_count=$(count_files "$SRC_FRONTEND")
     info "Deploying $file_count frontend files"
 
-    # Clean /www/ — remove everything except preserved directories
+    # Clean /www/ — remove everything except preserved items
     for item in "$WWW_ROOT"/*; do
         name=$(basename "$item")
         case "$name" in
-            cgi-bin|luci-static) continue ;;
+            cgi-bin|luci-static|index.html.old) continue ;;
             *) rm -rf "$item" ;;
         esac
     done
@@ -605,18 +599,19 @@ uninstall() {
         info "Removed UCI config"
     fi
 
-    # Remove frontend — clean /www/ except preserved directories
+    # Remove frontend — clean /www/ except preserved directories and backup
     for item in "$WWW_ROOT"/*; do
         name=$(basename "$item")
         case "$name" in
-            cgi-bin|luci-static) continue ;;
+            cgi-bin|luci-static|index.html.old) continue ;;
             *) rm -rf "$item" ;;
         esac
     done
 
-    if [ -f "$BACKUP_DIR/index.html.orig" ]; then
-        cp "$BACKUP_DIR/index.html.orig" "$WWW_ROOT/index.html"
-        info "Restored original index.html from backup"
+    # Restore original index.html from in-place backup
+    if [ -f "$WWW_ROOT/index.html.old" ]; then
+        mv "$WWW_ROOT/index.html.old" "$WWW_ROOT/index.html"
+        info "Restored original index.html"
     fi
     info "Removed frontend files"
 

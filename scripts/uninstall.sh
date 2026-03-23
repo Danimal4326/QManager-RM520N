@@ -314,12 +314,12 @@ remove_backend() {
 remove_frontend() {
     step "Removing frontend files"
 
-    # Clean /www/ — remove everything except preserved directories
+    # Clean /www/ — remove everything except preserved directories and backup
     local removed=0
     for item in "$WWW_ROOT"/*; do
         name=$(basename "$item")
         case "$name" in
-            cgi-bin|luci-static) continue ;;
+            cgi-bin|luci-static|index.html.old) continue ;;
             *)
                 rm -rf "$item"
                 removed=$(( removed + 1 ))
@@ -328,10 +328,10 @@ remove_frontend() {
     done
     info "Removed $removed item(s) from $WWW_ROOT"
 
-    # Restore the original OpenWRT/LuCI index.html from backup
-    if [ -f "$BACKUP_DIR/index.html.orig" ]; then
-        cp "$BACKUP_DIR/index.html.orig" "$WWW_ROOT/index.html"
-        info "Restored original index.html from $BACKUP_DIR/index.html.orig"
+    # Restore original index.html from in-place backup
+    if [ -f "$WWW_ROOT/index.html.old" ]; then
+        mv "$WWW_ROOT/index.html.old" "$WWW_ROOT/index.html"
+        info "Restored original index.html"
     else
         warn "No backup found — original index.html was not restored"
         warn "  Device web interface may show a blank page until LuCI is reinstalled"
