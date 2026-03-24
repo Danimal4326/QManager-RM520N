@@ -36,6 +36,7 @@ import {
 import {
   AlertTriangleIcon,
   ArrowRightIcon,
+  CheckCircle2Icon,
   DownloadIcon,
   FileTextIcon,
   LoaderCircle,
@@ -43,7 +44,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import type { UpdateInfo, UpdateStatus } from "@/hooks/use-software-update";
+import type { UpdateInfo, UpdateStatus, DownloadState } from "@/hooks/use-software-update";
 import { StatusBadge } from "./software-update";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -85,13 +86,16 @@ function formatRelativeTime(iso: string): string {
 interface UpdateStatusCardProps {
   updateInfo: UpdateInfo | null;
   updateStatus: UpdateStatus;
+  downloadState: DownloadState | null;
   isLoading: boolean;
   isChecking: boolean;
   isUpdating: boolean;
+  isDownloading: boolean;
   error: string | null;
   lastChecked: string | null;
   checkForUpdates: () => Promise<void>;
-  installUpdate: () => Promise<void>;
+  downloadUpdate: (version?: string) => Promise<void>;
+  installStaged: () => Promise<void>;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -99,25 +103,36 @@ interface UpdateStatusCardProps {
 export function UpdateStatusCard({
   updateInfo,
   updateStatus,
+  downloadState,
   isLoading,
   isChecking,
   isUpdating,
+  isDownloading,
   error,
   lastChecked,
   checkForUpdates,
-  installUpdate,
+  downloadUpdate,
+  installStaged,
 }: UpdateStatusCardProps) {
   const [showInstallDialog, setShowInstallDialog] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
 
+  const handleDownload = useCallback(async () => {
+    try {
+      await downloadUpdate();
+    } catch {
+      toast.error("Failed to start download");
+    }
+  }, [downloadUpdate]);
+
   const handleInstall = useCallback(async () => {
     setShowInstallDialog(false);
     try {
-      await installUpdate();
+      await installStaged();
     } catch {
-      toast.error("Failed to start update");
+      toast.error("Failed to start installation");
     }
-  }, [installUpdate]);
+  }, [installStaged]);
 
   // ── Loading skeleton ──────────────────────────────────────────────────
   if (isLoading) {
@@ -263,6 +278,46 @@ export function UpdateStatusCard({
               );
             })()}
 
+            {/* ── Download progress / verified badge ──────────────── */}
+            {updateAvailable && downloadState && (
+              <>
+                <Separator />
+                <motion.div variants={itemVariants}>
+                  {(downloadState.status === "downloading" || downloadState.status === "verifying") && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          {downloadState.status === "downloading" ? "Downloading qmanager.tar.gz..." : "Verifying SHA-256..."}
+                        </span>
+                        {downloadState.size && (
+                          <span className="text-xs text-muted-foreground">{downloadState.size}</span>
+                        )}
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full bg-primary animate-pulse" style={{ width: downloadState.status === "verifying" ? "90%" : "60%" }} />
+                      </div>
+                    </div>
+                  )}
+                  {downloadState.status === "ready" && (
+                    <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
+                      <CheckCircle2Icon className="size-4 text-emerald-500 shrink-0" />
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                        Downloaded &amp; SHA-256 verified{downloadState.size ? ` (${downloadState.size})` : ""}
+                      </span>
+                    </div>
+                  )}
+                  {downloadState.status === "error" && (
+                    <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-2.5">
+                      <AlertTriangleIcon className="size-4 text-destructive shrink-0" />
+                      <span className="text-xs text-destructive">
+                        {downloadState.message || "Download failed"}
+                      </span>
+                    </div>
+                  )}
+                </motion.div>
+              </>
+            )}
+
             {/* ── Footer: timestamp + action button ───────────────── */}
             <Separator />
             <motion.div variants={itemVariants} className="flex items-center justify-between gap-2">
@@ -272,13 +327,37 @@ export function UpdateStatusCard({
                   : "Never checked"}
               </span>
               {updateAvailable ? (
-                <Button
-                  onClick={() => setShowInstallDialog(true)}
-                  disabled={isUpdating || !updateInfo?.download_url}
-                >
-                  <DownloadIcon className="size-4" />
-                  Install Update
-                </Button>
+                downloadState?.status === "ready" ? (
+                  <Button
+                    onClick={() => setShowInstallDialog(true)}
+                    disabled={isUpdating}
+                  >
+                    <DownloadIcon className="size-4" />
+                    Install Update
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleDownload}
+                    disabled={isDownloading || isUpdating}
+                  >
+                    {isDownloading ? (
+                      <>
+                        <LoaderCircle className="size-4 animate-spin" />
+                        Downloading...
+                      </>
+                    ) : downloadState?.status === "error" ? (
+                      <>
+                        <RefreshCwIcon className="size-4" />
+                        Retry Download
+                      </>
+                    ) : (
+                      <>
+                        <DownloadIcon className="size-4" />
+                        Download Update
+                      </>
+                    )}
+                  </Button>
+                )
               ) : (
                 <Button
                   variant="outline"
