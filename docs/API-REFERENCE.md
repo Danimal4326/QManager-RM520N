@@ -871,6 +871,63 @@ The HTTP response is flushed before the device reboots asynchronously. The conne
 
 ---
 
+## Video Optimizer
+
+### GET `/network/video_optimizer.sh`
+
+Read video optimizer settings and service status.
+
+**Response:**
+```json
+{
+  "success": true,
+  "enabled": true,
+  "status": "running",
+  "uptime": "2h 34m",
+  "packets_processed": 48291,
+  "domains_loaded": 22,
+  "binary_installed": true,
+  "kernel_module_loaded": true
+}
+```
+
+Status values: `running`, `stopped`, `restarting`, `error`
+
+### GET `/network/video_optimizer.sh?action=verify_status`
+
+Poll verification test progress/results.
+
+**Response (running):**
+```json
+{"success": true, "status": "running"}
+```
+
+**Response (complete):**
+```json
+{
+  "success": true,
+  "status": "complete",
+  "timestamp": "2026-03-24T14:30:00Z",
+  "without_bypass": {"speed_mbps": 2.4, "throttled": true},
+  "with_bypass": {"speed_mbps": 47.2, "throttled": false},
+  "improvement": "19.7x"
+}
+```
+
+### POST `/network/video_optimizer.sh`
+
+Save settings:
+```json
+{"action": "save", "enabled": true}
+```
+
+Start verification:
+```json
+{"action": "verify"}
+```
+
+---
+
 ## VPN
 
 ### GET/POST `/vpn/tailscale.sh`

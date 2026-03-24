@@ -22,3 +22,21 @@
 3. **Confidence through feedback** — Every action (save, reboot, apply profile) must have clear visual feedback: loading states, success confirmations, error messages. Users are changing real device settings — they need to trust what happened.
 4. **Consistent, systematic** — Use the established shadcn/ui components and design tokens uniformly. No one-off styles. Cards, forms, tables, and dialogs should feel like they belong to one coherent system.
 5. **Responsive and resilient** — Works on desktop monitors and tablets in the field. Degrade gracefully. Handle loading, empty, and error states intentionally — never show a blank screen.
+
+## CGI Endpoint Reference (Additions)
+
+| Feature         | CGI Script                   | Hook                     | Types                | Reboot? |
+|-----------------|------------------------------|--------------------------|----------------------|---------|
+| Video Optimizer | `network/video_optimizer.sh` | `use-video-optimizer.ts` | `video-optimizer.ts` | No      |
+
+## Feature-Specific Notes
+
+### Video Optimizer (DPI Evasion)
+
+- **Binary**: nfqws from zapret project, installed at `/usr/bin/nfqws`
+- **Hostname list**: `/etc/qmanager/video_domains.txt` (curated video CDNs, excludes generic CDN domains)
+- **nftables rules**: NFQUEUE on wwan0, queue 200, `bypass` flag for graceful failure
+- **Strategies**: TCP SNI split (`--dpi-desync=split2`) + QUIC desync (`--dpi-desync-udplen-increment`)
+- **Verification**: `qmanager_dpi_verify` — curl with `--connect-to` SNI spoofing against speed.cloudflare.com
+- **Init.d**: `qmanager_dpi` (procd, START=99, UCI-gated)
+- **Dependencies**: `kmod-nft-queue`, `libnetfilter-queue`, `libnfnetlink`, `libmnl`, full `curl` (not BusyBox)

@@ -201,6 +201,24 @@ Ethernet negotiation helpers:
 
 AT command execution helpers for CGI scripts that need to send AT commands.
 
+### dpi_helper.sh
+
+Video Optimizer helper functions. Guard-loaded (`_DPI_HELPER_LOADED`).
+
+**Functions:**
+
+| Function | Description |
+|----------|-------------|
+| `dpi_check_binary()` | Verify nfqws binary exists |
+| `dpi_check_kmod()` | Verify/load kernel module |
+| `dpi_check_libs()` | Verify shared library dependencies |
+| `dpi_insert_rules(iface)` | Add nftables NFQUEUE rules |
+| `dpi_remove_rules()` | Remove nftables NFQUEUE rules by comment |
+| `dpi_get_status()` | Return running/stopped |
+| `dpi_get_uptime()` | Calculate from PID timestamp |
+| `dpi_get_packet_count()` | Read nftables counter |
+| `dpi_get_domain_count()` | Count hostlist entries |
+
 ---
 
 ## Daemons
@@ -339,6 +357,18 @@ Boot-time one-shot: checks if the device rebooted during a scheduled low power w
 5. If inside window: set state flags immediately, sleep 30s (modem init), send `AT+CFUN=0`
 6. If outside window: clean up any stale flags from before reboot
 
+### qmanager_dpi (Video Optimizer)
+
+**Type:** Procd service (daemon pattern)
+**Binary:** `/usr/bin/nfqws` (from zapret project)
+**Config:** UCI `quecmanager.video_optimizer`
+
+Manages the nfqws DPI evasion service for video throttle bypass. Inserts nftables NFQUEUE rules on wwan0 to intercept TLS/QUIC handshake packets and applies SNI fragmentation/desync strategies.
+
+**Start:** Checks UCI enabled + binary + kernel module → inserts nftables rules → launches nfqws via procd
+**Stop:** Removes nftables rules → kills nfqws → cleans up PID file
+**Respawn:** 3600s window, 5s delay, max 5 respawns
+
 ### qcmd
 
 AT command wrapper — handles modem device path, locking, and response parsing.
@@ -361,6 +391,7 @@ result=$(qcmd 'AT+QENG="servingcell"')
 | `qmanager_wan_guard` | non-procd | 99 | `qmanager_wan_guard` | WAN profile validation (one-shot) |
 | `qmanager_tower_failover` | non-procd | 99 | `qmanager_tower_failover` | Tower failover watchdog |
 | `qmanager_low_power_check` | non-procd | 99 | `qmanager_low_power_check` | Boot-time low power window check (one-shot, double-fork) |
+| `qmanager_dpi` | procd | 99 | `nfqws` | Video Optimizer DPI evasion service (UCI-gated) |
 
 Non-procd services use the double-fork pattern for daemonization:
 ```sh
