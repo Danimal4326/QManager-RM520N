@@ -16,6 +16,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -25,10 +32,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { RotateCcwIcon } from "lucide-react";
+import { DownloadIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import type { UpdateInfo } from "@/hooks/use-software-update";
+import type { UpdateInfo, AvailableVersion } from "@/hooks/use-software-update";
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -36,7 +43,9 @@ interface UpdatePreferencesCardProps {
   updateInfo: UpdateInfo | null;
   isLoading: boolean;
   isUpdating: boolean;
-  rollback: () => Promise<void>;
+  isDownloading: boolean;
+  downloadUpdate: (version: string) => Promise<void>;
+  installStaged: () => Promise<void>;
   togglePrerelease: (enabled: boolean) => Promise<void>;
   saveAutoUpdate: (enabled: boolean, time: string) => Promise<void>;
 }
@@ -59,11 +68,14 @@ export function UpdatePreferencesCard({
   updateInfo,
   isLoading,
   isUpdating,
-  rollback,
+  isDownloading,
+  downloadUpdate,
+  installStaged,
   togglePrerelease,
   saveAutoUpdate,
 }: UpdatePreferencesCardProps) {
-  const [showRollbackDialog, setShowRollbackDialog] = useState(false);
+  const [showInstallDialog, setShowInstallDialog] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<string>("");
   const [prereleaseToggling, setPrereleaseToggling] = useState(false);
   const [autoUpdateToggling, setAutoUpdateToggling] = useState(false);
   const [autoUpdateTime, setAutoUpdateTime] = useState("03:00");
@@ -95,14 +107,15 @@ export function UpdatePreferencesCard({
     [togglePrerelease],
   );
 
-  const handleRollback = useCallback(async () => {
-    setShowRollbackDialog(false);
+  const handleVersionInstall = useCallback(async () => {
+    setShowInstallDialog(false);
+    if (!selectedVersion) return;
     try {
-      await rollback();
+      await downloadUpdate(selectedVersion);
     } catch {
-      toast.error("Failed to start rollback");
+      toast.error("Failed to start download");
     }
-  }, [rollback]);
+  }, [selectedVersion, downloadUpdate]);
 
   const handleAutoUpdateToggle = useCallback(
     async (checked: boolean) => {
@@ -269,64 +282,102 @@ export function UpdatePreferencesCard({
               </>
             )}
 
-            {/* ── Rollback section ────────────────────────────────── */}
+            {/* ── Version Management ──────────────────────────────── */}
             <Separator />
-            {updateInfo?.rollback_available && updateInfo?.rollback_version ? (
-              <motion.div variants={itemVariants} className="flex flex-col gap-2">
-                <p className="font-semibold text-sm">Version Rollback</p>
-                <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/50 p-3">
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-xs text-muted-foreground">
-                      Previous version
-                    </span>
-                    <span className="text-sm font-medium">
-                      {updateInfo.rollback_version}
-                    </span>
-                  </div>
+            <motion.div variants={itemVariants} className="flex flex-col gap-2">
+              <p className="font-semibold text-sm">Version Management</p>
+              <div className="flex flex-col gap-2 rounded-lg border bg-muted/50 p-3">
+                <span className="text-xs text-muted-foreground">
+                  Select a version to install, reinstall, or rollback.
+                </span>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={selectedVersion}
+                    onValueChange={setSelectedVersion}
+                    disabled={isUpdating || isDownloading}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select version..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(updateInfo?.available_versions ?? []).map((v) => (
+                        <SelectItem
+                          key={v.tag}
+                          value={v.tag}
+                          disabled={!v.has_assets}
+                        >
+                          <div className="flex items-center justify-between gap-3 w-full">
+                            <span>{v.tag}</span>
+                            {v.is_current ? (
+                              <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                current
+                              </span>
+                            ) : !v.has_assets ? (
+                              <span className="text-[10px] text-muted-foreground">
+                                no binary
+                              </span>
+                            ) : v.asset_size ? (
+                              <span className="text-[10px] text-muted-foreground">
+                                {v.asset_size}
+                              </span>
+                            ) : null}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowRollbackDialog(true)}
-                    disabled={isUpdating}
+                    onClick={() => setShowInstallDialog(true)}
+                    disabled={!selectedVersion || isUpdating || isDownloading}
                     className="shrink-0"
                   >
-                    <RotateCcwIcon className="size-4" />
-                    Restore
+                    <DownloadIcon className="size-4" />
+                    Install
                   </Button>
                 </div>
-              </motion.div>
-            ) : (
-              <motion.div variants={itemVariants} className="flex flex-col gap-2">
-                <p className="font-semibold text-sm">Version Rollback</p>
-                <p className="text-sm text-muted-foreground">
-                  No previous version available for rollback.
-                </p>
-              </motion.div>
-            )}
+              </div>
+            </motion.div>
           </motion.div>
         </CardContent>
       </Card>
 
-      {/* ── Rollback confirmation dialog ─────────────────────────────── */}
+      {/* ── Version install confirmation dialog ────────────────────── */}
       <AlertDialog
-        open={showRollbackDialog}
-        onOpenChange={setShowRollbackDialog}
+        open={showInstallDialog}
+        onOpenChange={setShowInstallDialog}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restore Previous Version</AlertDialogTitle>
+            <AlertDialogTitle>
+              {selectedVersion === updateInfo?.current_version
+                ? "Reinstall Current Version"
+                : `Install ${selectedVersion}`}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will restore QManager to{" "}
-              <strong>{updateInfo?.rollback_version}</strong>. The device will
-              reboot automatically after the rollback. Do not power off the
-              device during this process.
+              {selectedVersion === updateInfo?.current_version ? (
+                <>
+                  This will reinstall <strong>{selectedVersion}</strong> to repair the
+                  current installation. The device will reboot after installation.
+                </>
+              ) : (
+                <>
+                  This will install <strong>{selectedVersion}</strong>, replacing the
+                  current version (<strong>{updateInfo?.current_version}</strong>).
+                  The device will reboot after installation.
+                </>
+              )}
+              {" "}Do not power off the device during this process.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRollback}>
-              <RotateCcwIcon className="size-4" />
-              Restore Now
+            <AlertDialogAction onClick={handleVersionInstall}>
+              <DownloadIcon className="size-4" />
+              {selectedVersion === updateInfo?.current_version
+                ? "Reinstall Now"
+                : "Install Now"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
