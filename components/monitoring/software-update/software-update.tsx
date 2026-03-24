@@ -296,6 +296,7 @@ const SoftwareUpdateComponent = () => {
               <StatusBadge
                 updateAvailable={false}
                 isUpdating={true}
+                isDownloading={isDownloading}
                 updateStatus={updateStatus}
               />
             </CardAction>
@@ -349,7 +350,6 @@ const SoftwareUpdateComponent = () => {
           isUpdating={isUpdating}
           isDownloading={isDownloading}
           downloadUpdate={hookData.downloadUpdate}
-          installStaged={hookData.installStaged}
           togglePrerelease={hookData.togglePrerelease}
           saveAutoUpdate={hookData.saveAutoUpdate}
         />

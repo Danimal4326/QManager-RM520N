@@ -4,10 +4,10 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { authFetch } from "@/lib/auth-fetch";
 
 // =============================================================================
-// useSoftwareUpdate — Check, install, rollback QManager updates
+// useSoftwareUpdate — Check, download, install QManager updates
 // =============================================================================
 // Checks GitHub Releases via the backend CGI on mount.
-// Polls /tmp/qmanager_update.json during install/rollback.
+// Two-step flow: download + verify → install. Polls status during both phases.
 //
 // Backend: GET/POST /cgi-bin/quecmanager/system/update.sh
 // =============================================================================

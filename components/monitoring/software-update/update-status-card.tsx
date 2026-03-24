@@ -181,6 +181,7 @@ export function UpdateStatusCard({
               <StatusBadge
                 updateAvailable={updateAvailable}
                 isUpdating={false}
+                isDownloading={isDownloading}
                 updateStatus={updateStatus}
               />
             </CardAction>
@@ -293,16 +294,22 @@ export function UpdateStatusCard({
                           <span className="text-xs text-muted-foreground">{downloadState.size}</span>
                         )}
                       </div>
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-1.5 rounded-full bg-muted overflow-hidden"
+                        role="progressbar"
+                        aria-label={downloadState.status === "downloading" ? "Downloading update" : "Verifying integrity"}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
                         <div className="h-full rounded-full bg-primary animate-pulse" style={{ width: downloadState.status === "verifying" ? "90%" : "60%" }} />
                       </div>
                     </div>
                   )}
                   {downloadState.status === "ready" && (
-                    <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
-                      <CheckCircle2Icon className="size-4 text-emerald-500 shrink-0" />
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                        Downloaded &amp; SHA-256 verified{downloadState.size ? ` (${downloadState.size})` : ""}
+                    <div className="flex items-center gap-2 rounded-lg border border-success/20 bg-success/5 p-2.5">
+                      <CheckCircle2Icon className="size-4 text-success shrink-0" />
+                      <span className="text-xs text-success">
+                        Downloaded & SHA-256 verified{downloadState.size ? ` (${downloadState.size})` : ""}
                       </span>
                     </div>
                   )}

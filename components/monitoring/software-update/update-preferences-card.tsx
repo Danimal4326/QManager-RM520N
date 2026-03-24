@@ -35,7 +35,7 @@ import {
 import { DownloadIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import type { UpdateInfo, AvailableVersion } from "@/hooks/use-software-update";
+import type { UpdateInfo } from "@/hooks/use-software-update";
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -45,7 +45,6 @@ interface UpdatePreferencesCardProps {
   isUpdating: boolean;
   isDownloading: boolean;
   downloadUpdate: (version: string) => Promise<void>;
-  installStaged: () => Promise<void>;
   togglePrerelease: (enabled: boolean) => Promise<void>;
   saveAutoUpdate: (enabled: boolean, time: string) => Promise<void>;
 }
@@ -70,7 +69,6 @@ export function UpdatePreferencesCard({
   isUpdating,
   isDownloading,
   downloadUpdate,
-  installStaged,
   togglePrerelease,
   saveAutoUpdate,
 }: UpdatePreferencesCardProps) {
@@ -296,7 +294,7 @@ export function UpdatePreferencesCard({
                     onValueChange={setSelectedVersion}
                     disabled={isUpdating || isDownloading}
                   >
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger className="flex-1" aria-label="Select version to install">
                       <SelectValue placeholder="Select version..." />
                     </SelectTrigger>
                     <SelectContent>
