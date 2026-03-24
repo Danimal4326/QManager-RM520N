@@ -1,27 +1,18 @@
 #!/bin/sh
 # qmanager_dpi_verify — Before/after video throttle bypass speed test
 # Spawned by CGI, writes results to /tmp/qmanager_dpi_verify.json
+#
+# Downloads from speed.cloudflare.com with and without DPI bypass active.
+# Compares throughput to detect carrier throttling.
 
 . /usr/lib/qmanager/qlog.sh
 . /usr/lib/qmanager/dpi_helper.sh
 
 qlog_init "dpi_verify"
 
-# Verify full curl is available (BusyBox curl lacks --connect-to)
-# Check that curl is not BusyBox and supports --connect-to
-if curl --version 2>/dev/null | grep -q "^BusyBox"; then
-    printf '{"success":false,"status":"error","error":"Full curl package required. Run: opkg install curl"}' \
-        > /tmp/qmanager_dpi_verify.json
-    exit 1
-fi
-if ! curl --connect-to 2>&1 | grep -qi "requires\|parameter\|argument"; then
-    printf '{"success":false,"status":"error","error":"curl does not support --connect-to. Update or reinstall curl."}' \
-        > /tmp/qmanager_dpi_verify.json
-    exit 1
-fi
-
 RESULT_FILE="/tmp/qmanager_dpi_verify.json"
 PID_FILE="/tmp/qmanager_dpi_verify.pid"
+TEST_URL="https://speed.cloudflare.com/__down?bytes=50000000"
 TEST_DURATION=10
 
 # Write current PID
@@ -34,15 +25,12 @@ write_status() {
 }
 
 # Measure download speed (returns Mbps)
-# Uses curl to download from a fast server with SNI set to a video hostname
-# This isolates SNI-based throttling from other factors
 measure_speed() {
     local speed_bytes
     speed_bytes=$(curl -s -o /dev/null \
-        --connect-to "googlevideo.com:443:speed.cloudflare.com:443" \
         --max-time "$TEST_DURATION" \
         -w "%{speed_download}" \
-        "https://googlevideo.com/__down?bytes=100000000" 2>/dev/null)
+        "$TEST_URL" 2>/dev/null)
 
     if [ -z "$speed_bytes" ] || [ "$speed_bytes" = "0" ] || [ "$speed_bytes" = "0.000" ]; then
         echo "0"
@@ -53,7 +41,7 @@ measure_speed() {
     echo "$speed_bytes" | awk '{printf "%.1f", $1 * 8 / 1000000}'
 }
 
-# Determine if speed indicates throttling
+# Determine if speed indicates throttling (< 4 Mbps)
 is_throttled() {
     local speed="$1"
     echo "$speed" | awk '{exit ($1 < 4.0) ? 0 : 1}'
@@ -71,7 +59,6 @@ write_status "running"
 qlog_info "Phase 1: Testing with bypass active"
 was_running=$(dpi_get_status)
 if [ "$was_running" != "running" ]; then
-    # Start it temporarily for the "with" test
     dpi_insert_rules
     /etc/init.d/qmanager_dpi start
     sleep 2
@@ -97,7 +84,6 @@ sleep 1
 speed_without=$(measure_speed)
 if [ "$speed_without" = "0" ]; then
     qlog_error "Failed to measure speed without bypass"
-    # Restore bypass before exiting
     if [ "$was_running" = "running" ]; then
         /etc/init.d/qmanager_dpi start
     fi
