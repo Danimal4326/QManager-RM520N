@@ -190,7 +190,7 @@ const data = {
         },
         {
           title: "DPI Settings",
-          url: "/local-network/video-optimizer",
+          url: "/local-network/dpi-masking",
         },
       ],
     },
