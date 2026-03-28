@@ -25,15 +25,17 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  TbAlertTriangleFilled,
-  TbInfoCircleFilled,
-  TbSquareRoundedCheckFilled,
-  TbCircleXFilled,
-} from "react-icons/tb";
+import { TbInfoCircleFilled } from "react-icons/tb";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, PercentIcon } from "lucide-react";
+import {
+  Loader2,
+  PercentIcon,
+  CheckCircle2Icon,
+  TriangleAlertIcon,
+  XCircleIcon,
+  MinusCircleIcon,
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import type {
@@ -126,14 +128,14 @@ const TowerLockingSettingsComponent = ({
     poor: "bg-warning/15 text-warning hover:bg-warning/20 border-warning/30",
     critical:
       "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30",
-    none: "bg-muted text-muted-foreground border-border",
+    none: "bg-muted/50 text-muted-foreground border-muted-foreground/30",
   };
 
   const qualityIcons: Record<string, React.ReactNode> = {
-    good: <TbSquareRoundedCheckFilled />,
-    fair: <TbAlertTriangleFilled />,
-    poor: <TbAlertTriangleFilled />,
-    critical: <TbCircleXFilled />,
+    good: <CheckCircle2Icon className="h-3 w-3" />,
+    fair: <TriangleAlertIcon className="h-3 w-3" />,
+    poor: <TriangleAlertIcon className="h-3 w-3" />,
+    critical: <XCircleIcon className="h-3 w-3" />,
     none: null,
   };
 
@@ -144,9 +146,9 @@ const TowerLockingSettingsComponent = ({
       return (
         <Badge
           variant="outline"
-          className="bg-muted text-muted-foreground border-border"
+          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
         >
-          <Loader2 className="w-3 h-3 animate-spin" />
+          <Loader2 className="h-3 w-3 animate-spin" />
           Loading
         </Badge>
       );
@@ -156,8 +158,9 @@ const TowerLockingSettingsComponent = ({
       return (
         <Badge
           variant="outline"
-          className="bg-muted text-muted-foreground border-border"
+          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
         >
+          <MinusCircleIcon className="h-3 w-3" />
           Unknown
         </Badge>
       );
@@ -169,7 +172,7 @@ const TowerLockingSettingsComponent = ({
           variant="outline"
           className="bg-success/15 text-success hover:bg-success/20 border-success/30"
         >
-          <TbSquareRoundedCheckFilled />
+          <CheckCircle2Icon className="h-3 w-3" />
           Monitoring
         </Badge>
       );
@@ -181,7 +184,7 @@ const TowerLockingSettingsComponent = ({
           variant="outline"
           className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
         >
-          <TbAlertTriangleFilled />
+          <TriangleAlertIcon className="h-3 w-3" />
           Unlocked due to Poor Signal
         </Badge>
       );
@@ -191,8 +194,9 @@ const TowerLockingSettingsComponent = ({
       return (
         <Badge
           variant="outline"
-          className="bg-muted text-muted-foreground border-border"
+          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
         >
+          <MinusCircleIcon className="h-3 w-3" />
           Disabled
         </Badge>
       );
@@ -203,7 +207,7 @@ const TowerLockingSettingsComponent = ({
         variant="outline"
         className="bg-success/15 text-success hover:bg-success/20 border-success/30"
       >
-        <TbSquareRoundedCheckFilled />
+        <CheckCircle2Icon className="h-3 w-3" />
         Ready
       </Badge>
     );
@@ -216,9 +220,9 @@ const TowerLockingSettingsComponent = ({
       return (
         <Badge
           variant="outline"
-          className="bg-muted text-muted-foreground border-border"
+          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
         >
-          <Loader2 className="w-3 h-3 animate-spin" />
+          <Loader2 className="h-3 w-3 animate-spin" />
           Loading
         </Badge>
       );
@@ -228,8 +232,9 @@ const TowerLockingSettingsComponent = ({
       return (
         <Badge
           variant="outline"
-          className="bg-muted text-muted-foreground border-border"
+          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
         >
+          <MinusCircleIcon className="h-3 w-3" />
           Unknown
         </Badge>
       );
@@ -241,7 +246,7 @@ const TowerLockingSettingsComponent = ({
           variant="outline"
           className="bg-success/15 text-success hover:bg-success/20 border-success/30"
         >
-          <TbSquareRoundedCheckFilled />
+          <CheckCircle2Icon className="h-3 w-3" />
           Active
         </Badge>
       );
@@ -250,8 +255,9 @@ const TowerLockingSettingsComponent = ({
     return (
       <Badge
         variant="outline"
-        className="bg-muted text-muted-foreground border-border"
+        className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
       >
+        <MinusCircleIcon className="h-3 w-3" />
         Inactive
       </Badge>
     );
@@ -265,9 +271,9 @@ const TowerLockingSettingsComponent = ({
       return (
         <Badge
           variant="outline"
-          className="bg-muted text-muted-foreground border-border"
+          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
         >
-          <Loader2 className="w-3 h-3 animate-spin" />
+          <Loader2 className="h-3 w-3 animate-spin" />
           Loading
         </Badge>
       );
@@ -277,8 +283,9 @@ const TowerLockingSettingsComponent = ({
       return (
         <Badge
           variant="outline"
-          className="bg-muted text-muted-foreground border-border"
+          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
         >
+          <MinusCircleIcon className="h-3 w-3" />
           Unknown
         </Badge>
       );
@@ -292,7 +299,7 @@ const TowerLockingSettingsComponent = ({
             variant="outline"
             className="bg-success/15 text-success hover:bg-success/20 border-success/30"
           >
-            <TbSquareRoundedCheckFilled />
+            <CheckCircle2Icon className="h-3 w-3" />
             Connected
           </Badge>
         );
@@ -302,7 +309,7 @@ const TowerLockingSettingsComponent = ({
             variant="outline"
             className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
           >
-            <TbAlertTriangleFilled />
+            <TriangleAlertIcon className="h-3 w-3" />
             Limited Service
           </Badge>
         );
@@ -312,7 +319,7 @@ const TowerLockingSettingsComponent = ({
             variant="outline"
             className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
           >
-            <TbAlertTriangleFilled />
+            <TriangleAlertIcon className="h-3 w-3" />
             Searching
           </Badge>
         );
@@ -322,7 +329,7 @@ const TowerLockingSettingsComponent = ({
             variant="outline"
             className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30"
           >
-            <TbCircleXFilled />
+            <XCircleIcon className="h-3 w-3" />
             No Service
           </Badge>
         );
@@ -330,7 +337,7 @@ const TowerLockingSettingsComponent = ({
         return (
           <Badge
             variant="outline"
-            className="bg-muted text-muted-foreground border-border"
+            className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
           >
             {serviceStatus}
           </Badge>
