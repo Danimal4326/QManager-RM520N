@@ -128,14 +128,15 @@ else
         qlog_info "NR5G neighbour data received, parsing..."
 
         printf '%s\n' "$nr_lines" | while IFS= read -r line; do
-            # Strip prefix: +QNWCFG: "nr5g_meas_info",<arfcn>,<pci>,<rsrp>,<rsrq>,<sinr>
+            # Strip prefix: +QNWCFG: "nr5g_meas_info",<enabled>,<arfcn>,<pci>,<rsrp>,<rsrq>,<sinr>
+            # Field 1 is the enabled flag (always 1 when reporting is on) — skip it.
             csv=$(printf '%s' "$line" | sed 's/.*"nr5g_meas_info",//' | tr -d ' ' | tr -d '\r')
 
-            arfcn=$(printf '%s' "$csv" | cut -d',' -f1)
-            pci=$(printf '%s' "$csv" | cut -d',' -f2)
-            rsrp=$(printf '%s' "$csv" | cut -d',' -f3)
-            rsrq=$(printf '%s' "$csv" | cut -d',' -f4)
-            sinr=$(printf '%s' "$csv" | cut -d',' -f5)
+            arfcn=$(printf '%s' "$csv" | cut -d',' -f2)
+            pci=$(printf '%s' "$csv" | cut -d',' -f3)
+            rsrp=$(printf '%s' "$csv" | cut -d',' -f4)
+            rsrq=$(printf '%s' "$csv" | cut -d',' -f5)
+            sinr=$(printf '%s' "$csv" | cut -d',' -f6)
 
             # Sanitize
             case "$arfcn" in '-'|'') arfcn="" ;; esac
