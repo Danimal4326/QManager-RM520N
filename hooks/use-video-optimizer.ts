@@ -233,7 +233,7 @@ export function useVideoOptimizer() {
     }
 
     if (settings?.status === "running") {
-      statsPollRef.current = setInterval(() => fetchSettings(true), 5000);
+      statsPollRef.current = setInterval(() => fetchSettings(true), 1000);
     }
 
     return () => {
