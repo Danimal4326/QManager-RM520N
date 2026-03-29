@@ -21,6 +21,11 @@ import {
   getSignalQuality,
   type SignalThresholds,
 } from "@/types/modem-status";
+import {
+  listVariants,
+  rowVariants,
+  getValueColorClass,
+} from "./signal-card-utils";
 
 // --- Signal bar icon based on RSRP quality ---
 function getSignalBarIcon(quality: string) {
@@ -60,21 +65,6 @@ function getStateDisplay(state: string) {
   }
 }
 
-// --- Value color based on signal quality threshold ---
-function getValueColorClass(quality: string): string {
-  switch (quality) {
-    case "excellent":
-    case "good":
-      return "text-success";
-    case "fair":
-      return "text-warning";
-    case "poor":
-      return "text-destructive";
-    default:
-      return "";
-  }
-}
-
 export interface SignalStatusRow {
   label: string;
   value: string;
@@ -91,16 +81,6 @@ interface SignalStatusCardProps {
   rows: SignalStatusRow[];
   isLoading: boolean;
 }
-
-// Stagger variants for metric rows
-const listVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.04 } },
-};
-const rowVariants = {
-  hidden: { opacity: 0, y: 5 },
-  visible: { opacity: 1, y: 0 },
-};
 
 export function SignalStatusCard({
   title,

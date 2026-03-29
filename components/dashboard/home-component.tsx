@@ -61,10 +61,7 @@ const HomeComponent = () => {
           {/* SA mode: SCC card on the left */}
           {networkType === "5G-SA" && hasScc && (
             <motion.div variants={itemVariants} className="h-full *:data-[slot=card]:h-full">
-              <SccStatusComponent
-                carriers={carrierComponents}
-                isLoading={isLoading}
-              />
+              <SccStatusComponent carriers={carrierComponents} />
             </motion.div>
           )}
 
@@ -103,10 +100,7 @@ const HomeComponent = () => {
           {/* LTE mode: SCC card on the right */}
           {networkType === "LTE" && hasScc && (
             <motion.div variants={itemVariants} className="h-full *:data-[slot=card]:h-full">
-              <SccStatusComponent
-                carriers={carrierComponents}
-                isLoading={isLoading}
-              />
+              <SccStatusComponent carriers={carrierComponents} />
             </motion.div>
           )}
         </motion.div>
