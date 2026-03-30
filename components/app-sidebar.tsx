@@ -21,6 +21,7 @@ import {
   ScanIcon,
   SettingsIcon,
   TerminalIcon,
+  AntennaIcon,
 } from "lucide-react";
 
 import QManagerLogo from "@/public/qmanager-logo.svg";
@@ -98,6 +99,11 @@ const data = {
       title: "Cellular Information",
       url: "/cellular",
       icon: RadioTowerIcon,
+    },
+    {
+      title: "Antenna Measurements",
+      url: "/cellular/antenna",
+      icon: AntennaIcon,
     },
     {
       title: "SMS Center",
