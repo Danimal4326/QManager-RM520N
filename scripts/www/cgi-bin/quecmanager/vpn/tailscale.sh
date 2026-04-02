@@ -536,14 +536,15 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         [ -x /etc/init.d/tailscale ] && /etc/init.d/tailscale disable >/dev/null 2>&1
 
         # Remove packages
-        opkg remove luci-app-tailscale tailscale >/dev/null 2>&1
+        opkg remove luci-app-tailscale tailscale tailscaled >/dev/null 2>&1
 
         # Clean up state files
         rm -rf /var/lib/tailscale/
         rm -f /tmp/qmanager_tailscale_auth_url /tmp/qmanager_tailscale_up_output /tmp/qmanager_tailscale_up_pid
 
-        # Verify removal
-        if command -v tailscale >/dev/null 2>&1; then
+        # Verify removal (check actual binary paths, not command -v which can be cached)
+        hash -r 2>/dev/null
+        if [ -x /usr/sbin/tailscale ] || [ -x /usr/bin/tailscale ]; then
             qlog_error "Tailscale binary still present after opkg remove"
             cgi_error "uninstall_failed" "Failed to remove Tailscale packages"
             exit 0

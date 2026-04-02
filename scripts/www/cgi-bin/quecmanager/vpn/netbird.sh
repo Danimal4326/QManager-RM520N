@@ -664,8 +664,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         rm -rf /var/lib/netbird/
         rm -f /tmp/qmanager_netbird_install.json /tmp/qmanager_netbird_install.pid
 
-        # Verify removal
-        if command -v netbird >/dev/null 2>&1; then
+        # Verify removal (check actual binary paths, not command -v which can be cached)
+        hash -r 2>/dev/null
+        if [ -x /usr/sbin/netbird ] || [ -x /usr/bin/netbird ]; then
             qlog_error "NetBird binary still present after opkg remove"
             cgi_error "uninstall_failed" "Failed to remove NetBird"
             exit 0
