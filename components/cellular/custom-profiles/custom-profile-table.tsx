@@ -200,7 +200,7 @@ export function ProfileTable({
                 variant="destructive"
                 onClick={() => setDeleteTarget(row.original)}
               >
-                <TbTrash className="mr-2 size-4" />
+                <TbTrash className="size-4" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

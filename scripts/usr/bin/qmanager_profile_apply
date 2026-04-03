@@ -360,6 +360,11 @@ apply_imei() {
 
     sleep "$CMD_GAP"
 
+    # Pre-set active profile before modem reboot — AT+CFUN=1,1 may trigger
+    # a full system reboot on some configurations (USB bus reset), which would
+    # kill this script before finalization. APN + TTL already applied above.
+    set_active_profile "$PROFILE_ID"
+
     # Trigger modem reboot to apply IMEI
     apply_requires_reboot="true"
     mark_step_running "imei" "Rebooting modem to apply new IMEI..."
@@ -431,9 +436,14 @@ fi
 
 write_state
 
-# Set active profile on success or partial success
+# Set active profile on success or partial success.
+# Note: IMEI step pre-sets the active marker before AT+CFUN=1,1 (modem reboot
+# may trigger a system reboot on some configs). Re-set here for the non-IMEI
+# path, and clear on total failure.
 if [ "$apply_status" = "complete" ] || [ "$apply_status" = "partial" ]; then
     set_active_profile "$PROFILE_ID"
+elif [ "$apply_status" = "failed" ]; then
+    clear_active_profile
 fi
 
 # --- Emit network event ------------------------------------------------------
