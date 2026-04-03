@@ -34,10 +34,10 @@
     qlog_error() { :; }
 }
 qlog_init "profile_apply"
-. /usr/lib/qmanager/cgi_at.sh
+[ -f /usr/lib/qmanager/cgi_at.sh ] && . /usr/lib/qmanager/cgi_at.sh
 
 # --- Source profile manager library ------------------------------------------
-. /usr/lib/qmanager/profile_mgr.sh
+[ -f /usr/lib/qmanager/profile_mgr.sh ] && . /usr/lib/qmanager/profile_mgr.sh
 
 # --- Configuration -----------------------------------------------------------
 STATE_FILE="/tmp/qmanager_profile_state.json"

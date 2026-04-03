@@ -1,0 +1,13 @@
+# /etc/systemd/system/qmanager-low-power-check.service
+[Unit]
+Description=QManager Low Power Boot Check (One-Shot)
+After=socat-smd7-from-ttyIN2.service qmanager-setup.service
+PartOf=qmanager.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/bin/qmanager_low_power_check
+
+[Install]
+WantedBy=qmanager.target

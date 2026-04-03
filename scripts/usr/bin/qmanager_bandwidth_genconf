@@ -1,31 +1,26 @@
 #!/bin/sh
 # =============================================================================
-# qmanager_bandwidth_genconf — Generate bridge_traffic_monitor config from UCI
+# qmanager_bandwidth_genconf — Generate bridge_traffic_monitor config
 # =============================================================================
-# Reads UCI quecmanager.bridge_monitor.* values and writes the config file
-# that the bridge_traffic_monitor_rm551 binary expects.
+# Reads settings from JSON config (/etc/qmanager/qmanager.conf) and writes
+# the config file that the bridge_traffic_monitor_rm551 binary expects.
 #
-# Called by /etc/init.d/qmanager_bandwidth before starting the binary.
+# Called by qmanager-bandwidth-genconf.service before starting the binary.
 #
 # Install location: /usr/bin/qmanager_bandwidth_genconf
 # =============================================================================
 
+[ -f /usr/lib/qmanager/config.sh ] && . /usr/lib/qmanager/config.sh
+
 CONF_DIR="/etc/quecmanager/settings"
 CONF_FILE="$CONF_DIR/bridge_traffic_monitor.conf"
 
-# Read UCI value with fallback
-uci_get() {
-    local val
-    val=$(uci -q get "quecmanager.bridge_monitor.$1" 2>/dev/null)
-    if [ -z "$val" ]; then echo "$2"; else echo "$val"; fi
-}
-
-# Read settings from UCI
-refresh_rate_ms=$(uci_get refresh_rate_ms 1000)
-ws_port=$(uci_get ws_port 8838)
-interfaces=$(uci_get interfaces "br-lan,eth0,rmnet_data0,rmnet_data1,rmnet_ipa0")
-channel=$(uci_get channel "network-monitor")
-json_mode=$(uci_get json_mode "yes")
+# Read settings from JSON config
+refresh_rate_ms=$(qm_config_get bridge_monitor refresh_rate_ms 1000)
+ws_port=$(qm_config_get bridge_monitor ws_port 8838)
+interfaces=$(qm_config_get bridge_monitor interfaces "br-lan,eth0,rmnet_data0,rmnet_data1,rmnet_ipa0")
+channel=$(qm_config_get bridge_monitor channel "network-monitor")
+json_mode=$(qm_config_get bridge_monitor json_mode "yes")
 
 # Ensure config directory exists
 mkdir -p "$CONF_DIR"

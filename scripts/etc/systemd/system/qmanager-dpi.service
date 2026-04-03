@@ -1,0 +1,18 @@
+# /etc/systemd/system/qmanager-dpi.service
+[Unit]
+Description=QManager DPI Evasion Service (nfqws)
+After=network.target qmanager-setup.service
+PartOf=qmanager.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/qmanager_dpi_start_check
+ExecStart=/usr/bin/qmanager_dpi_run
+ExecStop=/usr/bin/qmanager_dpi_stop
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=3600
+StartLimitBurst=5
+
+[Install]
+WantedBy=qmanager.target

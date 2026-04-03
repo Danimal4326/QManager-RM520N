@@ -1,0 +1,22 @@
+# /etc/systemd/system/qmanager-tower-failover.service
+[Unit]
+Description=QManager Tower Lock Failover Daemon
+After=qmanager-poller.service socat-smd7-from-ttyIN2.service
+Wants=qmanager-poller.service
+PartOf=qmanager.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sh -c '\
+    [ -f /etc/qmanager/tower_lock.json ] || exit 1; \
+    fo=$(jq -r ".failover.enabled // false" /etc/qmanager/tower_lock.json 2>/dev/null); \
+    lte=$(jq -r ".lte.enabled // false" /etc/qmanager/tower_lock.json 2>/dev/null); \
+    nr=$(jq -r ".nr_sa.enabled // false" /etc/qmanager/tower_lock.json 2>/dev/null); \
+    [ "$fo" = "true" ] || exit 1; \
+    [ "$lte" = "true" ] || [ "$nr" = "true" ] || exit 1'
+ExecStart=/usr/bin/qmanager_tower_failover
+ExecStopPost=/bin/sh -c 'rm -f /tmp/qmanager_tower_failover.pid /tmp/qmanager_tower_failover'
+Restart=no
+
+[Install]
+WantedBy=qmanager.target

@@ -19,6 +19,7 @@ QManager is a modern web-based GUI for managing Quectel cellular modems. It supp
 | [Design System](DESIGN-SYSTEM.md) | Colors, typography, components, theming, and UI conventions |
 | [Deployment Guide](DEPLOYMENT.md) | Building, installing, and deploying to OpenWRT devices |
 | [RM520N-GL Architecture](rm520n-gl-architecture.md) | AT command handling, system analysis, and porting guide for the RM520N-GL modem |
+| [RM520N Phase 2: Systemd Migration](rm520n-phase2-systemd-migration.md) | Converting procd init.d scripts to systemd service units for the RM520N-GL port |
 
 ---
 

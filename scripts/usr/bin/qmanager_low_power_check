@@ -15,26 +15,22 @@
 }
 
 qlog_init "low_power_check"
+[ -f /usr/lib/qmanager/config.sh ] && . /usr/lib/qmanager/config.sh
 
 STATE_FILE="/tmp/qmanager_low_power_active"
 WATCHCAT_LOCK="/tmp/qmanager_watchcat.lock"
 
 # ---------------------------------------------------------------------------
-# Read UCI configuration
+# Read configuration from JSON config
 # ---------------------------------------------------------------------------
-enabled=$(uci -q get quecmanager.settings.low_power_enabled 2>/dev/null)
+enabled=$(qm_config_get settings low_power_enabled 0)
 if [ "$enabled" != "1" ]; then
     exit 0
 fi
 
-start_time=$(uci -q get quecmanager.settings.low_power_start 2>/dev/null)
-end_time=$(uci -q get quecmanager.settings.low_power_end 2>/dev/null)
-days=$(uci -q get quecmanager.settings.low_power_days 2>/dev/null)
-
-# Defaults
-[ -z "$start_time" ] && start_time="23:00"
-[ -z "$end_time" ] && end_time="06:00"
-[ -z "$days" ] && days="0,1,2,3,4,5,6"
+start_time=$(qm_config_get settings low_power_start "23:00")
+end_time=$(qm_config_get settings low_power_end "06:00")
+days=$(qm_config_get settings low_power_days "0,1,2,3,4,5,6")
 
 # ---------------------------------------------------------------------------
 # Check if today is an active day

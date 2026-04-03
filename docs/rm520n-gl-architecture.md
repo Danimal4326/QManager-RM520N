@@ -32,6 +32,7 @@ The RM520N-GL is a fundamentally different platform: it runs its own Linux OS in
   - [RGMII Ethernet](#rgmii-ethernet)
   - [Firewall and TTL](#firewall-and-ttl)
   - [LAN Configuration](#lan-configuration)
+- [Development Access](#development-access)
 - [Watchdog Services](#watchdog-services)
 - [VPN (Tailscale)](#vpn-tailscale)
 - [Porting Strategy Summary](#porting-strategy-summary)
@@ -598,6 +599,62 @@ AT commands also control some LAN settings:
 | PCIe RC mode | `AT+QCFG="pcie/mode",1` |
 
 QManager features that modify network configuration (MTU, DNS, LAN IP) will need to use these AT commands and/or xmlstarlet instead of UCI.
+
+---
+
+## Development Access
+
+### SSH via Dropbear
+
+SSH access is provided by `dropbear` from Entware. Since the RM520N-GL has no internet access from its own Linux environment by default, the package must be transferred manually.
+
+**Install (offline via ADB):**
+```bash
+# Download on PC
+curl -O https://bin.entware.net/armv7sf-k3.2/dropbear_2024.86-1_armv7-3.2.ipk
+
+# Push and install
+adb push dropbear_2024.86-1_armv7-3.2.ipk /tmp/
+adb shell "/opt/bin/opkg install /tmp/dropbear_2024.86-1_armv7-3.2.ipk"
+# opkg post-install auto-generates RSA, ECDSA, and ED25519 host keys
+```
+
+**Systemd service** (`/lib/systemd/system/dropbear.service`):
+```ini
+[Unit]
+Description=Dropbear SSH Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/sbin/dropbear -F -E -p 22
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+mount -o remount,rw /
+# write service file above, then:
+systemctl daemon-reload
+systemctl enable dropbear
+systemctl start dropbear
+```
+
+Connect via: `ssh root@192.168.225.1` (device default gateway IP).
+
+### WinSCP File Transfer
+
+Use **SCP protocol** (not SFTP — no sftp-server is installed). Connect to `root@192.168.225.1:22`.
+
+**Gotcha — console menu blocks SCP sessions:** The device ships with an interactive console menu (from the iamromulan toolkit) that launches on every login shell. This causes WinSCP to hang at "Starting Session" because SCP's shell session is intercepted by the menu instead of running commands.
+
+**Fix:** In WinSCP → Advanced → SCP/Shell → Shell, set:
+```
+/bin/bash --norc --noprofile
+```
+This starts a clean shell bypassing `.bashrc`/`.profile` where the menu is launched. Interactive SSH terminal sessions are unaffected — just press `4` (Exit to Root Shell) when the menu appears.
 
 ---
 

@@ -1,0 +1,41 @@
+#!/bin/sh
+# =============================================================================
+# qmanager_setup — One-Shot Directory & Permission Setup (RM520N-GL)
+# =============================================================================
+# Replaces the inline setup logic from the old procd start_service().
+# Run once at boot by qmanager-setup.service before other services start.
+#
+# Install location: /usr/bin/qmanager_setup
+# =============================================================================
+
+# Ensure required directories exist
+mkdir -p /var/lock /etc/qmanager /usr/lib/qmanager /tmp/quecmanager
+
+# Make all qmanager binaries executable
+for f in /usr/bin/qmanager_*; do
+    [ -f "$f" ] && chmod +x "$f"
+done
+
+# Make all CGI scripts executable
+for f in /www/cgi-bin/quecmanager/*.sh /www/cgi-bin/quecmanager/*/*.sh; do
+    [ -f "$f" ] && chmod +x "$f"
+done
+
+# Secure auth config
+[ -f /etc/qmanager/auth.json ] && chmod 600 /etc/qmanager/auth.json
+
+# Create default long_commands.list if missing
+if [ ! -f /etc/qmanager/long_commands.list ]; then
+    cat > /etc/qmanager/long_commands.list << 'EOF'
+# QManager Long Commands List
+QSCAN
+QSCANFREQ
+QFOTADL
+EOF
+fi
+
+# Initialize default JSON config if missing
+if [ -f /usr/lib/qmanager/config.sh ]; then
+    . /usr/lib/qmanager/config.sh
+    qm_config_init
+fi

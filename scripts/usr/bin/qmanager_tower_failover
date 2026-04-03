@@ -30,7 +30,7 @@
 qlog_init "tower_failover"
 
 # --- Load tower lock library -------------------------------------------------
-. /usr/lib/qmanager/tower_lock_mgr.sh 2>/dev/null
+[ -f /usr/lib/qmanager/tower_lock_mgr.sh ] && . /usr/lib/qmanager/tower_lock_mgr.sh 2>/dev/null
 
 # --- Constants ---------------------------------------------------------------
 PID_FILE="/tmp/qmanager_tower_failover.pid"

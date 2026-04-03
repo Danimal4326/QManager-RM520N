@@ -1,0 +1,13 @@
+# /etc/systemd/system/qmanager-setup.service
+[Unit]
+Description=QManager Directory & Permission Setup
+Before=qmanager-ping.service qmanager-poller.service
+PartOf=qmanager.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/qmanager_setup
+
+[Install]
+WantedBy=qmanager.target

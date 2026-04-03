@@ -41,6 +41,9 @@ MAX_EVENTS=50
     append_event() { :; }
 }
 
+# --- Config helper (RM520N-GL: replaces UCI) ---------------------------------
+[ -f /usr/lib/qmanager/config.sh ] && . /usr/lib/qmanager/config.sh
+
 # --- File Paths --------------------------------------------------------------
 PING_CACHE="/tmp/qmanager_ping.json"
 STATE_FILE="/tmp/qmanager_watchcat.json"
@@ -91,35 +94,33 @@ reboots_this_hour=0
 # =============================================================================
 
 read_config() {
-    CFG_ENABLED=$(uci -q get quecmanager.watchcat.enabled 2>/dev/null)
-    [ -z "$CFG_ENABLED" ] && CFG_ENABLED=1
+    CFG_ENABLED=$(qm_config_get watchcat enabled 1)
 
     local val
-    val=$(uci -q get quecmanager.watchcat.check_interval 2>/dev/null)
+    val=$(qm_config_get watchcat check_interval "")
     [ -n "$val" ] && CFG_CHECK_INTERVAL="$val"
 
-    val=$(uci -q get quecmanager.watchcat.max_failures 2>/dev/null)
+    val=$(qm_config_get watchcat max_failures "")
     [ -n "$val" ] && CFG_MAX_FAILURES="$val"
 
-    val=$(uci -q get quecmanager.watchcat.cooldown 2>/dev/null)
+    val=$(qm_config_get watchcat cooldown "")
     [ -n "$val" ] && CFG_COOLDOWN="$val"
 
-    val=$(uci -q get quecmanager.watchcat.tier1_enabled 2>/dev/null)
+    val=$(qm_config_get watchcat tier1_enabled "")
     [ -n "$val" ] && CFG_TIER1_ENABLED="$val"
 
-    val=$(uci -q get quecmanager.watchcat.tier2_enabled 2>/dev/null)
+    val=$(qm_config_get watchcat tier2_enabled "")
     [ -n "$val" ] && CFG_TIER2_ENABLED="$val"
 
-    val=$(uci -q get quecmanager.watchcat.tier3_enabled 2>/dev/null)
+    val=$(qm_config_get watchcat tier3_enabled "")
     [ -n "$val" ] && CFG_TIER3_ENABLED="$val"
 
-    val=$(uci -q get quecmanager.watchcat.tier4_enabled 2>/dev/null)
+    val=$(qm_config_get watchcat tier4_enabled "")
     [ -n "$val" ] && CFG_TIER4_ENABLED="$val"
 
-    val=$(uci -q get quecmanager.watchcat.backup_sim_slot 2>/dev/null)
-    CFG_BACKUP_SIM_SLOT="$val"
+    CFG_BACKUP_SIM_SLOT=$(qm_config_get watchcat backup_sim_slot "")
 
-    val=$(uci -q get quecmanager.watchcat.max_reboots_per_hour 2>/dev/null)
+    val=$(qm_config_get watchcat max_reboots_per_hour "")
     [ -n "$val" ] && CFG_MAX_REBOOTS_PER_HOUR="$val"
 
     qlog_info "Config loaded: interval=${CFG_CHECK_INTERVAL}s max_fail=${CFG_MAX_FAILURES} cooldown=${CFG_COOLDOWN}s"
@@ -426,9 +427,8 @@ execute_tier4() {
         qlog_error "TIER 4: Auto-disabling watchcat"
         append_event "watchcat_recovery" "Watchcat disabled: reboot limit exceeded (${reboots_this_hour} reboots/hour)" "error"
 
-        # Permanently disable via UCI
-        uci set quecmanager.watchcat.enabled=0
-        uci commit quecmanager 2>/dev/null
+        # Permanently disable via JSON config
+        qm_config_set watchcat enabled 0
 
         CFG_ENABLED=0
         state="disabled"

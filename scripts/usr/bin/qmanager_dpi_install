@@ -7,7 +7,12 @@
 # /usr/bin/nfqws, and verify it works. Skips the full zapret package to avoid
 # opkg dependency issues on custom firmware.
 
-. /usr/lib/qmanager/qlog.sh
+. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
+    qlog_init() { :; }; qlog_info() { logger -t qmanager_dpi_install "$1"; }
+    qlog_warn() { logger -t qmanager_dpi_install "WARN: $1"; }
+    qlog_error() { logger -t qmanager_dpi_install "ERROR: $1"; }
+    qlog_debug() { :; }
+}
 
 qlog_init "dpi_install"
 

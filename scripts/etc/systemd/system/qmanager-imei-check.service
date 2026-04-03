@@ -1,0 +1,18 @@
+# /etc/systemd/system/qmanager-imei-check.service
+[Unit]
+Description=QManager IMEI Rejection Check (One-Shot)
+After=socat-smd7-from-ttyIN2.service qmanager-setup.service
+PartOf=qmanager.target
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sh -c '\
+    [ -f /etc/qmanager/imei_check_pending ] || exit 1; \
+    [ -f /etc/qmanager/imei_backup.json ] || exit 1; \
+    enabled=$(jq -r "(.enabled) | if . == null then \"false\" else tostring end" /etc/qmanager/imei_backup.json 2>/dev/null); \
+    [ "$enabled" = "true" ] || exit 1'
+ExecStart=/usr/bin/qmanager_imei_check
+RemainAfterExit=no
+
+[Install]
+WantedBy=qmanager.target

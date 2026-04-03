@@ -1,0 +1,17 @@
+# /etc/systemd/system/qmanager-ping.service
+[Unit]
+Description=QManager Ping Daemon
+After=network.target qmanager-setup.service
+PartOf=qmanager.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/qmanager_ping
+EnvironmentFile=-/etc/qmanager/environment
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=3600
+StartLimitBurst=5
+
+[Install]
+WantedBy=qmanager.target

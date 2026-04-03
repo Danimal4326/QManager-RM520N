@@ -1,0 +1,13 @@
+#!/bin/sh
+# =============================================================================
+# qmanager_dpi_stop — DPI Service Stop/Cleanup (RM520N-GL)
+# =============================================================================
+# Called by qmanager-dpi.service ExecStop.
+# Removes iptables NFQUEUE rules inserted by qmanager_dpi_run.
+#
+# Install location: /usr/bin/qmanager_dpi_stop
+# =============================================================================
+
+[ -f /usr/lib/qmanager/dpi_helper.sh ] && . /usr/lib/qmanager/dpi_helper.sh
+dpi_remove_rules
+rm -f "$NFQWS_PID"

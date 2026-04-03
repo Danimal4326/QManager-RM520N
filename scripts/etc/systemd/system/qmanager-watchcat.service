@@ -1,0 +1,20 @@
+# /etc/systemd/system/qmanager-watchcat.service
+[Unit]
+Description=QManager Connection Health Watchdog
+After=qmanager-poller.service socat-smd7-from-ttyIN2.service
+Wants=qmanager-poller.service
+PartOf=qmanager.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sh -c '[ -f /usr/lib/qmanager/config.sh ] && . /usr/lib/qmanager/config.sh && val=$(qm_config_get watchcat enabled 0) && [ "$val" = "1" ]'
+ExecStart=/usr/bin/qmanager_watchcat
+EnvironmentFile=-/etc/qmanager/environment
+ExecStopPost=/bin/sh -c 'rm -f /tmp/qmanager_watchcat.pid /tmp/qmanager_watchcat.lock /tmp/qmanager_recovery_active'
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=3600
+StartLimitBurst=5
+
+[Install]
+WantedBy=qmanager.target

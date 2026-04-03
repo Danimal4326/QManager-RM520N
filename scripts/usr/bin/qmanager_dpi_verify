@@ -6,15 +6,16 @@
 # This is the same approach as test_masquerade but targets a hostlisted
 # domain to confirm the Video Optimizer pipeline is working end-to-end.
 
-. /usr/lib/qmanager/qlog.sh
-. /usr/lib/qmanager/dpi_helper.sh
+[ -f /usr/lib/qmanager/qlog.sh ] && . /usr/lib/qmanager/qlog.sh
+[ -f /usr/lib/qmanager/config.sh ] && . /usr/lib/qmanager/config.sh
+[ -f /usr/lib/qmanager/dpi_helper.sh ] && . /usr/lib/qmanager/dpi_helper.sh
 
 qlog_init "dpi_verify"
 
 RESULT_FILE="/tmp/qmanager_dpi_verify.json"
 
 # Must be running with VO enabled
-vo_enabled=$(uci -q get quecmanager.video_optimizer.enabled)
+vo_enabled=$(qm_config_get video_optimizer enabled 0)
 if [ "$vo_enabled" != "1" ] || [ "$(dpi_get_status)" != "running" ]; then
     printf '{"success":false,"status":"error","error":"Video Optimizer is not running. Enable it first."}' > "$RESULT_FILE"
     exit 1

@@ -1,0 +1,18 @@
+# /etc/systemd/system/qmanager-poller.service
+[Unit]
+Description=QManager Modem Data Poller
+After=socat-smd7-from-ttyIN2.service qmanager-setup.service qmanager-ping.service
+Wants=qmanager-ping.service
+PartOf=qmanager.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/qmanager_poller
+EnvironmentFile=-/etc/qmanager/environment
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=3600
+StartLimitBurst=5
+
+[Install]
+WantedBy=qmanager.target

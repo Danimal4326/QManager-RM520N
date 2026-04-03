@@ -1,17 +1,17 @@
 #!/bin/sh
 # =============================================================================
-# vpn_firewall.sh — Shared VPN Firewall & Routing Management
+# vpn_firewall.sh — Shared VPN Firewall & Routing Management (RM520N-GL)
 # =============================================================================
 # Sourced by VPN CGI scripts (tailscale.sh, netbird.sh) to:
-#   1. Create/remove fw4 firewall zones for VPN interfaces
-#   2. Add/remove mwan3 ipset exception for VPN CGNAT range
+#   1. Add/remove iptables FORWARD rules for VPN interfaces
+#   2. mwan3 ipset exception — no-op on RM520N-GL (mwan3 not present)
 #
-# Without the zone, fw4's default DROP policy blocks inbound VPN traffic.
-# Without the ipset exception, mwan3 marks VPN reply packets for WAN routing
-# instead of sending them back through the VPN tunnel.
+# On RM520N-GL, iptables' default FORWARD policy is ACCEPT, so we only need
+# to ensure MASQUERADE is set for VPN traffic leaving the modem interface
+# and that traffic can flow between the VPN tunnel and rmnet_data interfaces.
 #
-# Zones persist across reboots (UCI config). The ipset entry is ephemeral
-# and must be re-applied on each service start.
+# Rules are inserted into the FORWARD chain of the filter table.
+# Rules are tagged with a comment for idempotent add/remove.
 #
 # Usage:
 #   . /usr/lib/qmanager/vpn_firewall.sh
@@ -28,25 +28,28 @@ _VPN_FW_LOADED=1
     qlog_error() { :; }
 }
 
+VPN_CGNAT_RANGE="100.64.0.0/10"
+
+# Comment prefix used to identify our iptables rules for a given zone
+_vpn_comment_prefix() {
+    echo "qmanager_vpn_${1}"
+}
+
 # -----------------------------------------------------------------------------
 # vpn_fw_zone_exists <zone_name>
-#   Returns 0 if a firewall zone with the given name exists, 1 otherwise.
+#   Returns 0 if iptables FORWARD rules for this zone exist, 1 otherwise.
 # -----------------------------------------------------------------------------
 vpn_fw_zone_exists() {
-    local name="$1" i=0
-    while true; do
-        val=$(uci -q get "firewall.@zone[$i].name") || break
-        [ "$val" = "$name" ] && return 0
-        i=$((i + 1))
-    done
-    return 1
+    local zone_name="$1"
+    local comment
+    comment=$(_vpn_comment_prefix "$zone_name")
+    iptables -t filter -L FORWARD -n 2>/dev/null | grep -q "$comment"
 }
 
 # -----------------------------------------------------------------------------
 # vpn_fw_ensure_zone <zone_name> <device>
-#   Idempotent: creates firewall zone + forwarding rules if they don't exist.
-#   Zone: input=ACCEPT, output=ACCEPT, forward=ACCEPT, device=<device>
-#   Forwarding: <zone>→lan and lan→<zone>
+#   Idempotent: inserts iptables FORWARD rules for VPN traffic if not present.
+#   Allows bidirectional forwarding between VPN interface and rmnet_data+.
 # -----------------------------------------------------------------------------
 vpn_fw_ensure_zone() {
     local zone_name="$1" device="$2"
@@ -56,99 +59,61 @@ vpn_fw_ensure_zone() {
         return 1
     fi
 
-    # Zone already exists — still ensure mwan3 exception (ephemeral, lost on reboot)
     if vpn_fw_zone_exists "$zone_name"; then
-        qlog_info "Firewall zone '$zone_name' already exists, skipping zone creation"
-        vpn_fw_ensure_mwan3_exception
+        qlog_info "VPN rules for '$zone_name' already exist"
         return 0
     fi
 
-    qlog_info "Creating firewall zone '$zone_name' for device '$device'"
+    local comment
+    comment=$(_vpn_comment_prefix "$zone_name")
 
-    # Create zone
-    uci add firewall zone >/dev/null
-    uci set "firewall.@zone[-1].name=$zone_name"
-    uci set "firewall.@zone[-1].input=ACCEPT"
-    uci set "firewall.@zone[-1].output=ACCEPT"
-    uci set "firewall.@zone[-1].forward=ACCEPT"
-    uci set "firewall.@zone[-1].device=$device"
+    qlog_info "Creating iptables rules for VPN '$zone_name' on device '$device'"
 
-    # Forwarding: vpn → lan
-    uci add firewall forwarding >/dev/null
-    uci set "firewall.@forwarding[-1].src=$zone_name"
-    uci set "firewall.@forwarding[-1].dest=lan"
+    # Allow forwarding: VPN → rmnet_data (outbound via modem)
+    iptables -t filter -A FORWARD -i "$device" -o rmnet_data+ \
+        -m comment --comment "$comment" -j ACCEPT 2>/dev/null
 
-    # Forwarding: lan → vpn
-    uci add firewall forwarding >/dev/null
-    uci set "firewall.@forwarding[-1].src=lan"
-    uci set "firewall.@forwarding[-1].dest=$zone_name"
+    # Allow forwarding: rmnet_data → VPN (return traffic)
+    iptables -t filter -A FORWARD -i rmnet_data+ -o "$device" \
+        -m state --state RELATED,ESTABLISHED \
+        -m comment --comment "$comment" -j ACCEPT 2>/dev/null
 
-    uci commit firewall
-    /etc/init.d/firewall restart >/dev/null 2>&1
+    # Allow forwarding: VPN → LAN bridge
+    iptables -t filter -A FORWARD -i "$device" -o br-lan \
+        -m comment --comment "$comment" -j ACCEPT 2>/dev/null
 
-    # Add mwan3 ipset exception for VPN CGNAT range
-    vpn_fw_ensure_mwan3_exception
+    # Allow forwarding: LAN bridge → VPN
+    iptables -t filter -A FORWARD -i br-lan -o "$device" \
+        -m comment --comment "$comment" -j ACCEPT 2>/dev/null
 
-    qlog_info "Firewall zone '$zone_name' created successfully"
+    # Masquerade VPN traffic leaving via rmnet_data (NAT for VPN clients)
+    iptables -t nat -A POSTROUTING -s "$VPN_CGNAT_RANGE" -o rmnet_data+ \
+        -m comment --comment "$comment" -j MASQUERADE 2>/dev/null
+
+    qlog_info "VPN rules for '$zone_name' created"
     return 0
 }
 
 # -----------------------------------------------------------------------------
 # vpn_fw_ensure_mwan3_exception
-#   Adds the VPN CGNAT range (100.64.0.0/10) to the mwan3_connected_ipv4
-#   ipset so mwan3 skips marking VPN-bound traffic. Without this, mwan3
-#   marks reply packets for WAN routing and they never reach the VPN tunnel.
-#   Idempotent — safe to call multiple times. Ephemeral (cleared on reboot),
-#   so must be called on every service start.
+#   No-op on RM520N-GL — mwan3 is not present on this platform.
 # -----------------------------------------------------------------------------
-VPN_CGNAT_RANGE="100.64.0.0/10"
-
 vpn_fw_ensure_mwan3_exception() {
-    if ! command -v ipset >/dev/null 2>&1; then
-        qlog_info "ipset not available, skipping mwan3 exception"
-        return 0
-    fi
-
-    # Check if the ipset exists (mwan3 may not be installed)
-    if ! ipset list mwan3_connected_ipv4 >/dev/null 2>&1; then
-        qlog_info "mwan3_connected_ipv4 ipset not found, skipping"
-        return 0
-    fi
-
-    # Check if already present
-    if ipset test mwan3_connected_ipv4 "$VPN_CGNAT_RANGE" 2>/dev/null; then
-        qlog_info "mwan3 exception for $VPN_CGNAT_RANGE already present"
-        return 0
-    fi
-
-    ipset add mwan3_connected_ipv4 "$VPN_CGNAT_RANGE" 2>/dev/null
-    qlog_info "Added $VPN_CGNAT_RANGE to mwan3_connected_ipv4 ipset"
+    qlog_info "mwan3 not present on RM520N-GL, skipping exception"
     return 0
 }
 
 # -----------------------------------------------------------------------------
 # vpn_fw_remove_mwan3_exception
-#   Removes the VPN CGNAT range from mwan3 ipset. Only called when BOTH
-#   VPNs are being removed (if either is still installed, keep the exception).
+#   No-op on RM520N-GL — mwan3 is not present on this platform.
 # -----------------------------------------------------------------------------
 vpn_fw_remove_mwan3_exception() {
-    if ! command -v ipset >/dev/null 2>&1; then
-        return 0
-    fi
-
-    if ! ipset list mwan3_connected_ipv4 >/dev/null 2>&1; then
-        return 0
-    fi
-
-    ipset del mwan3_connected_ipv4 "$VPN_CGNAT_RANGE" 2>/dev/null
-    qlog_info "Removed $VPN_CGNAT_RANGE from mwan3_connected_ipv4 ipset"
     return 0
 }
 
 # -----------------------------------------------------------------------------
 # vpn_fw_remove_zone <zone_name>
-#   Removes the firewall zone and all associated forwarding rules.
-#   Deletes forwarding indices in reverse order to avoid index shifting.
+#   Removes all iptables rules tagged with the zone's comment.
 # -----------------------------------------------------------------------------
 vpn_fw_remove_zone() {
     local zone_name="$1"
@@ -159,57 +124,40 @@ vpn_fw_remove_zone() {
     fi
 
     if ! vpn_fw_zone_exists "$zone_name"; then
-        qlog_info "Firewall zone '$zone_name' does not exist, skipping removal"
+        qlog_info "VPN rules for '$zone_name' do not exist, skipping"
         return 0
     fi
 
-    qlog_info "Removing firewall zone '$zone_name'"
+    local comment
+    comment=$(_vpn_comment_prefix "$zone_name")
 
-    # --- Remove forwarding rules (reverse order) ---
-    local fwd_indices="" i=0
-    while true; do
-        src=$(uci -q get "firewall.@forwarding[$i].src") || break
-        dest=$(uci -q get "firewall.@forwarding[$i].dest") || break
-        if [ "$src" = "$zone_name" ] || [ "$dest" = "$zone_name" ]; then
-            fwd_indices="$i $fwd_indices"   # prepend → builds reverse order
-        fi
-        i=$((i + 1))
+    qlog_info "Removing iptables rules for VPN '$zone_name'"
+
+    # Remove filter FORWARD rules (iterate until none left)
+    local changed=true
+    while [ "$changed" = "true" ]; do
+        changed=false
+        local nums
+        nums=$(iptables -t filter -L FORWARD --line-numbers -n 2>/dev/null | \
+            awk '/'"$comment"'/ {print $1}' | sort -rn)
+        for num in $nums; do
+            iptables -t filter -D FORWARD "$num" 2>/dev/null && changed=true
+        done
     done
 
-    for idx in $fwd_indices; do
-        uci delete "firewall.@forwarding[$idx]" 2>/dev/null
+    # Remove nat POSTROUTING rules
+    changed=true
+    while [ "$changed" = "true" ]; do
+        changed=false
+        local nums
+        nums=$(iptables -t nat -L POSTROUTING --line-numbers -n 2>/dev/null | \
+            awk '/'"$comment"'/ {print $1}' | sort -rn)
+        for num in $nums; do
+            iptables -t nat -D POSTROUTING "$num" 2>/dev/null && changed=true
+        done
     done
 
-    # --- Remove zone ---
-    i=0
-    while true; do
-        val=$(uci -q get "firewall.@zone[$i].name") || break
-        if [ "$val" = "$zone_name" ]; then
-            uci delete "firewall.@zone[$i]"
-            break
-        fi
-        i=$((i + 1))
-    done
-
-    uci commit firewall
-    /etc/init.d/firewall restart >/dev/null 2>&1
-
-    # Only remove mwan3 exception if the OTHER VPN is also not installed.
-    # Both Tailscale and NetBird use the same CGNAT range.
-    local other_vpn_present=false
-    if [ "$zone_name" = "tailscale" ] && command -v netbird >/dev/null 2>&1; then
-        other_vpn_present=true
-    elif [ "$zone_name" = "netbird" ] && command -v tailscale >/dev/null 2>&1; then
-        other_vpn_present=true
-    fi
-
-    if [ "$other_vpn_present" = "false" ]; then
-        vpn_fw_remove_mwan3_exception
-    else
-        qlog_info "Other VPN still installed, keeping mwan3 exception"
-    fi
-
-    qlog_info "Firewall zone '$zone_name' removed successfully"
+    qlog_info "VPN rules for '$zone_name' removed"
     return 0
 }
 
@@ -218,7 +166,7 @@ vpn_fw_remove_zone() {
 #   Echoes "true" if the given binary is found, "false" otherwise.
 # -----------------------------------------------------------------------------
 vpn_check_other_installed() {
-    if command -v "$1" >/dev/null 2>&1; then
+    if [ -x "$1" ] || command -v "$1" >/dev/null 2>&1; then
         echo "true"
     else
         echo "false"

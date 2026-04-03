@@ -1,0 +1,17 @@
+# /etc/systemd/system/qmanager-bandwidth-websocat.service
+[Unit]
+Description=QManager Bandwidth WebSocket Server
+After=qmanager-bandwidth-genconf.service network.target
+Requires=qmanager-bandwidth-genconf.service
+PartOf=qmanager-bandwidth.target
+
+[Service]
+Type=simple
+ExecStart=/bin/sh -c '. /usr/lib/qmanager/config.sh 2>/dev/null; WS_PORT=$(qm_config_get bridge_monitor ws_port 8838); exec /usr/bin/websocat -E -t --ping-interval 10 --ping-timeout 30 "ws-listen:0.0.0.0:${WS_PORT}" "broadcast:mirror:"'
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=3600
+StartLimitBurst=5
+
+[Install]
+WantedBy=qmanager-bandwidth.target

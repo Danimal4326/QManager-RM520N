@@ -1,0 +1,14 @@
+# /etc/systemd/system/qmanager-bandwidth-genconf.service
+[Unit]
+Description=QManager Bandwidth Monitor Config Generator
+Before=qmanager-bandwidth-websocat.service qmanager-bandwidth-monitor.service
+PartOf=qmanager-bandwidth.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sh -c '[ -f /usr/lib/qmanager/config.sh ] && . /usr/lib/qmanager/config.sh && val=$(qm_config_get bridge_monitor enabled 0) && [ "$val" = "1" ]'
+ExecStart=/usr/bin/qmanager_bandwidth_genconf
+
+[Install]
+WantedBy=qmanager-bandwidth.target

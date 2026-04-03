@@ -1,0 +1,21 @@
+#!/bin/sh
+# =============================================================================
+# qmanager_eth_link_reset — Reset Ethernet to Auto Speed (RM520N-GL)
+# =============================================================================
+# Called by qmanager-eth-link.service ExecStop.
+# Restores full advertise mask so autoneg picks the best speed.
+#
+# Install location: /usr/bin/qmanager_eth_link_reset
+# =============================================================================
+
+[ -f /usr/lib/qmanager/ethtool_helper.sh ] && . /usr/lib/qmanager/ethtool_helper.sh
+
+ETH_INTERFACE="eth0"
+advertise=$(get_supported_advertise_hex)
+if [ -n "$advertise" ]; then
+    ethtool -s "$ETH_INTERFACE" advertise "$advertise" autoneg on 2>/dev/null
+else
+    ethtool -s "$ETH_INTERFACE" autoneg on 2>/dev/null
+fi
+ethtool -r "$ETH_INTERFACE" 2>/dev/null
+logger -t qmanager_eth_link "Reset to auto speed"

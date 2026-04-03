@@ -30,7 +30,7 @@
     qlog_debug() { :; }
 }
 qlog_init "imei_check"
-. /usr/lib/qmanager/cgi_at.sh
+[ -f /usr/lib/qmanager/cgi_at.sh ] && . /usr/lib/qmanager/cgi_at.sh
 
 # --- Constants ---------------------------------------------------------------
 BACKUP_CONFIG="/etc/qmanager/imei_backup.json"
