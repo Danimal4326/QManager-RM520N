@@ -158,7 +158,7 @@ export default function SystemSettingsCard({
   // Key-based remount: when settings change after save/re-fetch,
   // the form reinitializes with fresh values from useState defaults.
   const formKey = settings
-    ? `${settings.wan_guard_enabled}-${settings.temp_unit}-${settings.distance_unit}-${settings.zonename}-${settings.sms_tool_device}`
+    ? `${settings.temp_unit}-${settings.distance_unit}-${settings.zonename}-${settings.sms_tool_device}`
     : "empty";
 
   return (
@@ -200,12 +200,6 @@ function SystemSettingsForm({
   const [timezone, setTimezone] = useState(settings?.timezone ?? "UTC0");
   const [tzOpen, setTzOpen] = useState(false);
 
-  // WAN Guard toggle state (saves immediately, not via Save button)
-  const [wanGuardEnabled, setWanGuardEnabled] = useState(
-    settings?.wan_guard_enabled ?? false,
-  );
-  const [wanGuardSaving, setWanGuardSaving] = useState(false);
-
   // SMS Tool Port toggle state (saves immediately + requires reboot)
   const [smsToolSmd7, setSmsToolSmd7] = useState(
     (settings?.sms_tool_device ?? "") === "/dev/smd7",
@@ -226,34 +220,6 @@ function SystemSettingsForm({
   }, [settings, tempUnit, distanceUnit, zonename]);
 
   const canSave = isDirty && !isSaving;
-
-  // --- WAN Guard immediate toggle handler ---
-  const handleWanGuardChange = useCallback(
-    async (checked: boolean) => {
-      setWanGuardEnabled(checked);
-      setWanGuardSaving(true);
-
-      const success = await saveSettings({
-        action: "save_settings",
-        wan_guard_enabled: checked,
-        temp_unit: settings?.temp_unit ?? "celsius",
-        distance_unit: settings?.distance_unit ?? "km",
-        timezone: settings?.timezone ?? "UTC0",
-        zonename: settings?.zonename ?? "UTC",
-      });
-
-      setWanGuardSaving(false);
-
-      if (success) {
-        toast.success(checked ? "WAN Guard enabled" : "WAN Guard disabled");
-      } else {
-        // Revert on failure
-        setWanGuardEnabled(!checked);
-        toast.error("Failed to update WAN Guard");
-      }
-    },
-    [saveSettings, settings],
-  );
 
   // --- SMS Tool Port toggle: show confirmation dialog ---
   const handleSmsPortToggle = useCallback((checked: boolean) => {
@@ -313,7 +279,6 @@ function SystemSettingsForm({
 
     const success = await saveSettings({
       action: "save_settings",
-      wan_guard_enabled: wanGuardEnabled,
       temp_unit: tempUnit,
       distance_unit: distanceUnit,
       timezone,
@@ -329,7 +294,6 @@ function SystemSettingsForm({
   }, [
     canSave,
     saveSettings,
-    wanGuardEnabled,
     tempUnit,
     distanceUnit,
     timezone,
@@ -360,45 +324,6 @@ function SystemSettingsForm({
           initial="hidden"
           animate="visible"
         >
-          {/* ── WAN Guard Toggle ──────────────────────────────────── */}
-          <Separator />
-          <motion.div variants={itemVariants} className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex"
-                    aria-label="WAN Guard info"
-                  >
-                    <TbInfoCircleFilled className="size-5 text-info" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    Checks WAN interface profiles at boot and disables <br />{" "}
-                    any that don&apos;t have an active data connection, <br />{" "}
-                    preventing unnecessary CPU usage.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-              <p className="font-semibold text-muted-foreground text-sm">
-                WAN Guard
-              </p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="wan-guard-enabled"
-                checked={wanGuardEnabled}
-                onCheckedChange={handleWanGuardChange}
-                disabled={wanGuardSaving}
-              />
-              <Label htmlFor="wan-guard-enabled">
-                {wanGuardEnabled ? "Enabled" : "Disabled"}
-              </Label>
-            </div>
-          </motion.div>
-
           {/* ── SMS Tool Port ────────────────────────────────────── */}
           <Separator />
           <motion.div variants={itemVariants} className="flex items-center justify-between">

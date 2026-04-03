@@ -2,7 +2,13 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { authFetch } from "@/lib/auth-fetch";
-import type { InstallResult } from "@/types/video-optimizer";
+
+interface InstallResult {
+  success: boolean;
+  status: "idle" | "running" | "complete" | "error";
+  message?: string;
+  detail?: string;
+}
 
 // =============================================================================
 // useEmailAlerts — Fetch & Save Hook for Email Alert Settings

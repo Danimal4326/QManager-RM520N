@@ -5,7 +5,6 @@ import { authFetch } from "@/lib/auth-fetch";
 import type {
   SystemSettings,
   ScheduleConfig,
-  LowPowerConfig,
   SystemSettingsResponse,
 } from "@/types/system-settings";
 
@@ -24,7 +23,6 @@ const CGI_ENDPOINT = "/cgi-bin/quecmanager/system/settings.sh";
 
 export interface SaveSettingsPayload {
   action: "save_settings";
-  wan_guard_enabled?: boolean;
   hostname?: string;
   temp_unit?: "celsius" | "fahrenheit";
   distance_unit?: "km" | "miles";
@@ -40,24 +38,14 @@ export interface SaveScheduledRebootPayload {
   days: number[];
 }
 
-export interface SaveLowPowerPayload {
-  action: "save_low_power";
-  enabled: boolean;
-  start_time: string;
-  end_time: string;
-  days: number[];
-}
-
 export interface UseSystemSettingsReturn {
   settings: SystemSettings | null;
   scheduledReboot: ScheduleConfig | null;
-  lowPower: LowPowerConfig | null;
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
   saveSettings: (payload: SaveSettingsPayload) => Promise<boolean>;
   saveScheduledReboot: (payload: SaveScheduledRebootPayload) => Promise<boolean>;
-  saveLowPower: (payload: SaveLowPowerPayload) => Promise<boolean>;
   refresh: () => void;
 }
 
@@ -67,7 +55,6 @@ export function useSystemSettings(): UseSystemSettingsReturn {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [scheduledReboot, setScheduledReboot] =
     useState<ScheduleConfig | null>(null);
-  const [lowPower, setLowPower] = useState<LowPowerConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +91,6 @@ export function useSystemSettings(): UseSystemSettingsReturn {
 
       setSettings(json.settings);
       setScheduledReboot(json.scheduled_reboot);
-      setLowPower(json.low_power);
     } catch (err) {
       if (!mountedRef.current) return;
       setError(
@@ -128,8 +114,7 @@ export function useSystemSettings(): UseSystemSettingsReturn {
     async (
       payload:
         | SaveSettingsPayload
-        | SaveScheduledRebootPayload
-        | SaveLowPowerPayload,
+        | SaveScheduledRebootPayload,
     ): Promise<boolean> => {
       setError(null);
       setIsSaving(true);
@@ -184,21 +169,14 @@ export function useSystemSettings(): UseSystemSettingsReturn {
     [postAction],
   );
 
-  const saveLowPower = useCallback(
-    (payload: SaveLowPowerPayload) => postAction(payload),
-    [postAction],
-  );
-
   return {
     settings,
     scheduledReboot,
-    lowPower,
     isLoading,
     isSaving,
     error,
     saveSettings,
     saveScheduledReboot,
-    saveLowPower,
     refresh: fetchSettings,
   };
 }

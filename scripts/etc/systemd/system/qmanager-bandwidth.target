@@ -1,7 +1,0 @@
-# /etc/systemd/system/qmanager-bandwidth.target
-[Unit]
-Description=QManager Bandwidth Monitor Stack
-PartOf=qmanager.target
-
-[Install]
-WantedBy=qmanager.target

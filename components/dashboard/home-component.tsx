@@ -4,7 +4,6 @@ import React from "react";
 import { motion, type Variants } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useModemStatus } from "@/hooks/use-modem-status";
-import { useBandwidthMonitor } from "@/hooks/use-bandwidth-monitor";
 import NetworkStatusComponent from "./network-status";
 import DeviceStatus from "./device-status";
 import LTEStatusComponent from "./lte-status";
@@ -31,7 +30,6 @@ const itemVariants: Variants = {
 
 const HomeComponent = () => {
   const { data, isLoading, isStale, error } = useModemStatus();
-  const bandwidth = useBandwidthMonitor();
 
   const networkType = data?.network?.type ?? "";
   const carrierComponents = data?.network?.carrier_components ?? [];
@@ -126,11 +124,6 @@ const HomeComponent = () => {
               lteData={data?.lte ?? null}
               nrData={data?.nr ?? null}
               isLoading={isLoading}
-              liveBandwidth={
-                bandwidth.isConnected
-                  ? { download: bandwidth.currentDownload, upload: bandwidth.currentUpload }
-                  : null
-              }
             />
           </motion.div>
           <motion.div variants={itemVariants} className="h-full *:data-[slot=card]:h-full">

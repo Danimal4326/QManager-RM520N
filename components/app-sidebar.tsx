@@ -8,9 +8,6 @@ import {
   HomeIcon,
   RadioTowerIcon,
   LucideSignal,
-  EthernetPortIcon,
-  MonitorCloudIcon,
-  BirdIcon,
   MessageCircleIcon,
   DogIcon,
   RouterIcon,
@@ -63,10 +60,6 @@ const data = {
       url: "/system-settings",
       icon: SettingsIcon,
       items: [
-        {
-          title: "Bandwidth Monitor",
-          url: "/system-settings/bandwidth-monitor",
-        },
         {
           title: "Logs",
           url: "/system-settings/logs",
@@ -189,30 +182,13 @@ const data = {
   ],
   localNetwork: [
     {
-      title: "Ethernet Status",
-      url: "/local-network",
-      icon: EthernetPortIcon,
-    },
-    {
       title: "Settings",
       url: "/local-network/ip-passthrough",
       icon: Settings2,
       items: [
         {
-          title: "Custom DNS",
-          url: "/local-network/custom-dns",
-        },
-        {
           title: "TTL & MTU Settings",
           url: "/local-network/ttl-settings",
-        },
-        {
-          title: "Video Optimizer",
-          url: "/local-network/video-optimizer",
-        },
-        {
-          title: "Traffic Masquerade",
-          url: "/local-network/traffic-masquerade",
         },
       ],
     },
@@ -232,16 +208,6 @@ const data = {
           url: "/monitoring/email-alerts",
         },
       ],
-    },
-    {
-      title: "Tailscale",
-      url: "/monitoring/tailscale",
-      icon: MonitorCloudIcon,
-    },
-    {
-      title: "NetBird",
-      url: "/monitoring/netbird",
-      icon: BirdIcon,
     },
     {
       title: "Watchdog",

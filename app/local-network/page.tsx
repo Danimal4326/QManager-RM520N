@@ -1,9 +1,5 @@
-import EthernetStatusComponent from '@/components/local-network/ethernet-status'
+import { redirect } from "next/navigation";
 
-const EthernetStatusPage = () => {
-  return (
-    <EthernetStatusComponent/>
-  )
+export default function LocalNetworkPage() {
+  redirect("/local-network/ttl-settings");
 }
-
-export default EthernetStatusPage
