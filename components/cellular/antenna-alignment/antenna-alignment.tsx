@@ -19,23 +19,6 @@ import AlignmentMeterSection from "./alignment-meter";
 // Legend
 // ---------------------------------------------------------------------------
 
-const QUALITY_LEGEND = [
-  {
-    label: "Excellent",
-    classes: "bg-success/15 text-success border-success/30",
-  },
-  { label: "Good", classes: "bg-success/15 text-success border-success/30" },
-  {
-    label: "Fair",
-    classes: "bg-warning/15 text-warning border-warning/30",
-  },
-  {
-    label: "Poor",
-    classes:
-      "bg-destructive/15 text-destructive border-destructive/30",
-  },
-];
-
 // ---------------------------------------------------------------------------
 // Animation variants
 // ---------------------------------------------------------------------------
