@@ -17,6 +17,9 @@ PID_FILE="/tmp/qmanager_update.pid"
 VERSION_FILE="/etc/qmanager/VERSION"
 UPDATES_DIR="/etc/qmanager/updates"
 
+# Platform abstraction (systemd support)
+[ -f /usr/lib/qmanager/platform.sh ] && . /usr/lib/qmanager/platform.sh
+
 # --- Helpers -----------------------------------------------------------------
 
 log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"; }
@@ -75,7 +78,7 @@ MODE="$1"
 log "Starting qmanager_update mode=$MODE"
 
 # Stop watchdog early to prevent interference during download/install
-/etc/init.d/qmanager_watchcat stop 2>/dev/null
+svc_stop qmanager_watchcat
 log "Watchdog stopped"
 
 # =============================================================================
