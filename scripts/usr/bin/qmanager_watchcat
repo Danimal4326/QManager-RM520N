@@ -10,7 +10,7 @@
 #         LOCKED (maintenance mode — sleeps until lock removed)
 #
 # Escalation Tiers:
-#   Tier 1: Restart WAN interface (ifdown/ifup)
+#   Tier 1: Network deregister/reregister (AT+COPS=2/0)
 #   Tier 2: Radio toggle (AT+CFUN=0/1) — skipped if tower lock active
 #   Tier 3: SIM failover (AT+QUIMSLOT) — Golden Rule sequence
 #   Tier 4: System reboot — token bucket: max N/hour, auto-disables
@@ -43,6 +43,7 @@ MAX_EVENTS=50
 
 # --- Config helper (RM520N-GL: replaces UCI) ---------------------------------
 [ -f /usr/lib/qmanager/config.sh ] && . /usr/lib/qmanager/config.sh
+[ -f /usr/lib/qmanager/platform.sh ] && . /usr/lib/qmanager/platform.sh
 
 # --- File Paths --------------------------------------------------------------
 PING_CACHE="/tmp/qmanager_ping.json"
@@ -277,13 +278,13 @@ wait_for_modem() {
 # =============================================================================
 
 execute_tier1() {
-    qlog_info "TIER 1: Restarting WAN interface"
-    append_event "watchcat_recovery" "Watchcat: restarting WAN interface (Tier 1)" "warning"
+    qlog_info "TIER 1: Network deregister/reregister (AT+COPS)"
+    append_event "watchcat_recovery" "Watchcat: network deregister/reregister (Tier 1)" "warning"
 
     touch "$RECOVERY_FLAG"
-    ifdown wan 2>/dev/null
+    qcmd 'AT+COPS=2' 2>/dev/null
     sleep 2
-    ifup wan 2>/dev/null
+    qcmd 'AT+COPS=0' 2>/dev/null
     return 0
 }
 
@@ -350,14 +351,14 @@ execute_tier3() {
     original_sim_slot="$current_slot"
 
     # Stop tower failover daemon (locks are meaningless on different SIM)
-    /etc/init.d/qmanager_tower_failover stop 2>/dev/null
+    svc_stop qmanager_tower_failover
 
     # Golden Rule SIM swap sequence: CFUN=0 → 2s → QUIMSLOT → 2s → CFUN=1
     local result
     result=$(qcmd 'AT+CFUN=0' 2>/dev/null)
     if [ $? -ne 0 ]; then
         qlog_error "TIER 3: AT+CFUN=0 failed, aborting SIM failover"
-        /etc/init.d/qmanager_tower_failover start 2>/dev/null
+        svc_start qmanager_tower_failover
         return 0  # action attempted
     fi
 
@@ -412,7 +413,7 @@ sim_failover_fallback() {
     wait_for_modem
 
     # Restart tower failover daemon
-    /etc/init.d/qmanager_tower_failover start 2>/dev/null
+    svc_start qmanager_tower_failover
 
     current_sim_slot="$original_sim_slot"
     sim_failover_active="false"
@@ -436,7 +437,7 @@ execute_tier4() {
         write_state
         rm -f "$RECOVERY_FLAG"
 
-        # Exit — procd won't respawn since UCI disabled
+        # Exit — systemd won't restart since config disabled
         exit 0
     fi
 
