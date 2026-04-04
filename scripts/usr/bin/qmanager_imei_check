@@ -2,7 +2,7 @@
 # =============================================================================
 # qmanager_imei_check — One-Shot IMEI Rejection Check Daemon
 # =============================================================================
-# Spawned by /etc/init.d/qmanager_imei_check at boot.
+# Spawned by qmanager-imei-check.service at boot.
 # Waits for modem readiness, checks AT+QNETRC? for IMEI rejection,
 # and applies backup IMEI if configured.
 #

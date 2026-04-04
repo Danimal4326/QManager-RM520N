@@ -2,7 +2,7 @@
 # =============================================================================
 # qmanager_mtu_apply — One-Shot Daemon: Wait for Interface, Apply MTU
 # =============================================================================
-# Spawned at boot by /etc/init.d/qmanager_mtu. Waits for rmnet_data0 to
+# Spawned at boot by qmanager-mtu.service. Waits for rmnet_data0 to
 # appear (the modem's primary data interface), then sources the persistent
 # MTU rules file to restore the custom MTU on all rmnet_data interfaces.
 #

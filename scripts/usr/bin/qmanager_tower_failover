@@ -6,7 +6,7 @@
 # the configured threshold. Reads signal data from the poller's cached JSON
 # at /tmp/qmanager_status.json (no AT commands, no modem contention).
 #
-# Managed by /etc/init.d/qmanager_tower_failover (start/stop).
+# Managed by qmanager-tower-failover.service (start/stop).
 # All callers (CGI, cron, boot) go through init.d.
 #
 # Files:

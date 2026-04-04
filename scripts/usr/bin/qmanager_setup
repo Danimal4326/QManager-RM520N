@@ -2,7 +2,7 @@
 # =============================================================================
 # qmanager_setup — One-Shot Directory & Permission Setup (RM520N-GL)
 # =============================================================================
-# Replaces the inline setup logic from the old procd start_service().
+# One-shot setup: creates directories, sets permissions, initializes config.
 # Run once at boot by qmanager-setup.service before other services start.
 #
 # Install location: /usr/bin/qmanager_setup
