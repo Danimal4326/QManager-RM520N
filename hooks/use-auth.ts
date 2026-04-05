@@ -42,7 +42,12 @@ export function useLogin() {
       .then((data) => {
         setStatus(data.setup_required ? "setup_required" : "ready");
       })
-      .catch(() => setStatus("ready"));
+      .catch(() => {
+        // Backend unreachable on a fresh install likely means setup hasn't
+        // completed yet (e.g. lighttpd started before qmanager-setup).
+        // Default to setup_required so onboarding isn't silently skipped.
+        setStatus("setup_required");
+      });
   }, []);
 
   const login = useCallback(

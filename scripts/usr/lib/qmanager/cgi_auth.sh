@@ -81,6 +81,9 @@ qm_save_password() {
     _new_salt=$(qm_generate_salt)
     _new_hash=$(qm_hash_password "$1" "$_new_salt")
 
+    # Ensure config directory exists (safety net for first-boot race conditions)
+    mkdir -p "$(dirname "$AUTH_CONFIG")"
+
     jq -n --arg hash "$_new_hash" --arg salt "$_new_salt" \
         '{"hash":$hash,"salt":$salt,"version":1}' > "$AUTH_CONFIG"
     chmod 600 "$AUTH_CONFIG"

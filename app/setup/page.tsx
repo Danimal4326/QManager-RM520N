@@ -26,21 +26,36 @@ export default function SetupPage() {
       return;
     }
 
-    // Guard 2: confirm setup_required via backend
-    fetch(CHECK_ENDPOINT)
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.setup_required) {
-          // Password already set — go to normal login
-          window.location.href = "/login/";
-          return;
-        }
-        setReady(true);
-      })
-      .catch(() => {
-        // On error, fall back to login page
-        window.location.href = "/login/";
-      });
+    // Guard 2: confirm setup_required via backend (retry on failure —
+    // during first boot lighttpd may start before the backend is ready)
+    let attempt = 0;
+    const maxRetries = 3;
+    const retryDelay = 1500; // ms
+
+    function checkSetup() {
+      fetch(CHECK_ENDPOINT)
+        .then((r) => r.json())
+        .then((data) => {
+          if (!data.setup_required) {
+            // Password already set — go to normal login
+            window.location.href = "/login/";
+            return;
+          }
+          setReady(true);
+        })
+        .catch(() => {
+          attempt++;
+          if (attempt < maxRetries) {
+            setTimeout(checkSetup, retryDelay);
+          } else {
+            // Backend still unreachable after retries — show wizard anyway.
+            // On a fresh install this is the safe default.
+            setReady(true);
+          }
+        });
+    }
+
+    checkSetup();
   }, []);
 
   if (!ready) {

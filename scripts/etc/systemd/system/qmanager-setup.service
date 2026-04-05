@@ -1,7 +1,7 @@
 # /lib/systemd/system/qmanager-setup.service
 [Unit]
 Description=QManager Directory & Permission Setup
-Before=qmanager-ping.service qmanager-poller.service
+Before=lighttpd.service qmanager-ping.service qmanager-poller.service
 
 [Service]
 Type=oneshot
