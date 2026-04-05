@@ -80,7 +80,7 @@ SRC_DEPS="$INSTALL_DIR/dependencies"
 OPKG="/opt/bin/opkg"
 
 # Optional packages (not bundled — installed from Entware if available)
-OPTIONAL_PACKAGES="msmtp"
+OPTIONAL_PACKAGES=""
 
 # --- Colors & Icons ----------------------------------------------------------
 
@@ -151,6 +151,9 @@ install_dependencies() {
 
     # --- sms_tool (static ARM binary — direct copy) ---
     if [ -f "$SRC_DEPS/sms_tool" ]; then
+        # Remove existing binary first — cp fails with "Text file busy" if it's
+        # currently running (e.g. poller or socat bridge has it open).
+        rm -f "$BIN_DIR/sms_tool" 2>/dev/null
         cp "$SRC_DEPS/sms_tool" "$BIN_DIR/sms_tool"
         chmod +x "$BIN_DIR/sms_tool"
         info "sms_tool installed to $BIN_DIR/sms_tool"
