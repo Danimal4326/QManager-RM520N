@@ -66,23 +66,17 @@
 
 ## Prerequisites
 
-QManager requires the [Quectel RGMII Toolkit](https://github.com/iamromulan/quectel-rgmii-toolkit) (by iamromulan) to be installed first. The toolkit sets up Entware, SimpleAdmin, the socat PTY bridge, and other foundational services that QManager builds upon.
+- A **Quectel RM520N-GL** modem with RGMII Ethernet connectivity
+- **Entware** installed at `/opt` (the installer will bootstrap Entware automatically if not present, but internet access is required)
+- **ADB** or **SSH** access to the modem
 
-If you haven't installed the toolkit yet, ADB into your modem and run:
-
-```sh
-cd /tmp && curl -fsSL -o RMxxx_rgmii_toolkit.sh \
-  https://raw.githubusercontent.com/iamromulan/quectel-rgmii-toolkit/SDXLEMUR/RMxxx_rgmii_toolkit.sh && \
-  chmod +x RMxxx_rgmii_toolkit.sh && ./RMxxx_rgmii_toolkit.sh && cd /
-```
-
-Follow the prompts to install SimpleAdmin and Entware. Once that's done, you're ready for QManager.
+> **Note:** QManager is fully independent — it does **not** require SimpleAdmin or the RGMII Toolkit to be pre-installed. The installer handles everything: Entware bootstrap, lighttpd, user/group creation, and service setup.
 
 ---
 
 ## Quick Install
 
-1. ADB or SSH into the modem and run:
+ADB or SSH into the modem and run:
 
 ```sh
 curl -fsSL -o /tmp/qmanager-installer.sh \
@@ -90,9 +84,7 @@ curl -fsSL -o /tmp/qmanager-installer.sh \
   bash /tmp/qmanager-installer.sh
 ```
 
-The interactive installer fetches the latest release (including pre-releases), verifies the checksum, backs up SimpleAdmin, installs the QManager frontend and backend services, and configures lighttpd. Bundled dependencies (`sms_tool`, `jq`, `dropbear`) are installed automatically. A reboot is triggered after installation.
-
-> **Note:** Uninstalling QManager restores SimpleAdmin from the backup automatically.
+The interactive installer fetches the latest release, verifies the SHA-256 checksum, bootstraps Entware (if needed), installs lighttpd, deploys the QManager frontend and backend, configures systemd services, and optionally sets up SSH (dropbear). Bundled dependencies (`atcli_smd11`, `jq`, `dropbear`) are installed automatically. A reboot is triggered after installation.
 
 ### Upgrading
 
