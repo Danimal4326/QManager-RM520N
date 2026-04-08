@@ -26,17 +26,25 @@ if [ -e /dev/smd11 ]; then
     chmod 660 /dev/smd11
 fi
 
-# Shared /tmp files — owned by www-data so CGI scripts can open them.
-# Root (daemons) can still open because root owns the /tmp directory.
-# CRITICAL: fs.protected_regular=1 on RM520N-GL means O_CREAT in sticky /tmp
-# is blocked unless file_owner==caller OR dir_owner==caller.
+# Shared /tmp files — pre-created with correct ownership for fs.protected_regular=1.
+# CRITICAL: RM520N-GL's sticky /tmp + protected_regular blocks O_CREAT and open-for-write
+# unless file_owner==caller OR dir_owner==caller (root owns /tmp).
 # Must match paths in /usr/bin/qcmd: LOCK_FILE and PID_FILE
-touch /tmp/qmanager_at.lock /tmp/qmanager_at.pid /tmp/qmanager.log \
+#
+# Strategy: files written by BOTH root (poller) and www-data (CGI) must be root-owned
+# with mode 666. Files written by www-data only are www-data-owned.
+touch /tmp/qmanager_at.lock /tmp/qmanager_at.pid \
       /tmp/qmanager_profile_apply.pid /tmp/qmanager_profile_state.json
-chown www-data:www-data /tmp/qmanager_at.lock /tmp/qmanager_at.pid /tmp/qmanager.log \
+chown www-data:www-data /tmp/qmanager_at.lock /tmp/qmanager_at.pid \
       /tmp/qmanager_profile_apply.pid /tmp/qmanager_profile_state.json
-chmod 666 /tmp/qmanager_at.lock /tmp/qmanager_at.pid /tmp/qmanager.log \
+chmod 666 /tmp/qmanager_at.lock /tmp/qmanager_at.pid \
       /tmp/qmanager_profile_apply.pid /tmp/qmanager_profile_state.json
+
+# Log file — root-owned so both root (poller/daemons) and www-data (CGI) can write.
+# If www-data owned it, root would be blocked by fs.protected_regular=1.
+touch /tmp/qmanager.log
+chown root:root /tmp/qmanager.log
+chmod 666 /tmp/qmanager.log
 
 # Session directory — www-data needs write access (cleared on reboot since /tmp is tmpfs)
 mkdir -p /tmp/qmanager_sessions
