@@ -28,6 +28,16 @@ _EA_LOG_FILE="/tmp/qmanager_email_log.json"
 _EA_RELOAD_FLAG="/tmp/qmanager_email_reload"
 _EA_MAX_LOG=100
 
+# Detect msmtp binary — Entware installs to /opt/bin which is not in the
+# poller's PATH. Check common locations so both CGI and daemon contexts work.
+_EA_MSMTP_BIN=""
+for _p in /opt/bin/msmtp /usr/bin/msmtp; do
+    if [ -x "$_p" ]; then
+        _EA_MSMTP_BIN="$_p"
+        break
+    fi
+done
+
 # --- State (populated by email_alerts_init / _ea_read_config) ----------------
 _ea_enabled="false"
 _ea_sender=""
@@ -214,7 +224,7 @@ _ea_do_send() {
     local subject="$1"
     local html_body="$2"
 
-    if ! command -v msmtp >/dev/null 2>&1; then
+    if [ -z "$_EA_MSMTP_BIN" ] || [ ! -x "$_EA_MSMTP_BIN" ]; then
         qlog_error "Email alerts: msmtp not installed"
         return 1
     fi
@@ -232,7 +242,7 @@ _ea_do_send() {
         printf "Content-Type: text/html; charset=UTF-8\r\n"
         printf "\r\n"
         printf "%s" "$html_body"
-    } | msmtp -C "$_EA_MSMTP_CONFIG" "$_ea_recipient" 2>/tmp/msmtp_last_err.log
+    } | "$_EA_MSMTP_BIN" -C "$_EA_MSMTP_CONFIG" "$_ea_recipient" 2>/tmp/msmtp_last_err.log
 
     local rc=$?
     if [ $rc -eq 0 ]; then
