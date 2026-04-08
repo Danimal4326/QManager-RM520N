@@ -84,7 +84,7 @@ curl -fsSL -o /tmp/qmanager-installer.sh \
   bash /tmp/qmanager-installer.sh
 ```
 
-The interactive installer fetches the latest release, verifies the SHA-256 checksum, bootstraps Entware (if needed), installs lighttpd, deploys the QManager frontend and backend, configures systemd services, and optionally sets up SSH (dropbear). Bundled dependencies (`atcli_smd11`, `jq`, `dropbear`) are installed automatically. A reboot is triggered after installation.
+The interactive installer fetches the latest release, verifies the SHA-256 checksum, bootstraps Entware (if needed), installs lighttpd, deploys the QManager frontend and backend, configures systemd services, and optionally sets up SSH (dropbear). Bundled dependencies (`atcli_smd11`, `sms_tool`, `jq`, `dropbear`) are installed automatically. The SSH root password is automatically set to match the web UI password during first-time onboarding. A reboot is triggered after installation.
 
 ### Upgrading
 
@@ -104,7 +104,7 @@ bash /tmp/qmanager_install/uninstall_rm520n.sh --purge
 
 ## Additional Dependencies
 
-- **Bundled with installer:** `atcli_smd11` (ARM binary, AT command transport via `/dev/smd11`), `jq` (Entware package), `dropbear` (SSH server)
+- **Bundled with installer:** `atcli_smd11` (ARM binary, AT command transport via `/dev/smd11`), `sms_tool` (ARM binary, SMS send/recv/delete with multi-part reassembly), `jq` (Entware package), `dropbear` (SSH server)
 - **Installed from Entware:** `lighttpd` + `lighttpd-mod-openssl`, `sudo`, `coreutils-timeout`
 - **Optional:** `msmtp` (email alerts) -- can be installed from within the app
 
@@ -231,6 +231,7 @@ QManager/
 │   └── uninstall_rm520n.sh     # Clean removal script
 ├── dependencies/               # Bundled ARM binaries and packages
 │   ├── atcli_smd11             # ARM binary (AT command transport via /dev/smd11)
+│   ├── sms_tool                # ARM binary (SMS send/recv/delete)
 │   ├── jq.ipk                  # JSON processor
 │   └── dropbear_*.ipk          # SSH server
 ├── docs/                       # Documentation

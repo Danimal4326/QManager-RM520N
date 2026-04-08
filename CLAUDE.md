@@ -101,6 +101,9 @@ QManager installs independently — no SimpleAdmin or RGMII toolkit required:
 - **Cookie-based session auth** at CGI layer (no HTTP Basic Auth, no `.htpasswd`)
 - **`systemctl enable` does not work** — all boot persistence uses direct symlinks into `/lib/systemd/system/multi-user.target.wants/` (via `svc_enable`/`svc_disable` in `platform.sh`)
 - **Installer stops socat-smd11** services if running (atcli_smd11 requires smd11 unlocked)
+- **SSH password management:** `qmanager_set_ssh_password` helper reads password from stdin, updates `/etc/shadow` via `openssl passwd -1`. Whitelisted in sudoers for www-data. Called automatically during onboarding (syncs web UI password to root), and independently from System Settings > SSH Password card.
+- **Windows line ending safety:** Installer strips `\r` from all deployed shell scripts, systemd units, and sudoers rules (`sed -i 's/\r$//'`) — prevents BusyBox/sudoers parse failures from Windows-built tarballs
+- **lighttpd module version sync:** Installer runs `opkg upgrade` on lighttpd + all modules together when already installed — prevents `plugin-version doesn't match` errors during upgrades
 
 ## Removed/Deferred Features (dev-rm520 Branch)
 
