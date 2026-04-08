@@ -125,12 +125,15 @@ rmdir "$QMANAGER_ROOT" 2>/dev/null || true
 
 # --- Remove firewall rules ---
 rm -f /etc/firewall.user.ttl /etc/firewall.user.mtu 2>/dev/null || true
+# Stop the firewall service — this runs ExecStop which removes all iptables rules
+systemctl stop qmanager-firewall 2>/dev/null || true
+# Fallback: manually clean up if the service didn't exist or failed
 if command -v iptables >/dev/null 2>&1; then
-    iptables -D INPUT -i lo -p tcp --dport 80 -j ACCEPT 2>/dev/null || true
-    iptables -D INPUT -i lo -p tcp --dport 443 -j ACCEPT 2>/dev/null || true
-    for port in 80 443 22; do
-        iptables -D INPUT -i bridge0 -p tcp --dport "$port" -j ACCEPT 2>/dev/null || true
-        iptables -D INPUT -i eth0 -p tcp --dport "$port" -j ACCEPT 2>/dev/null || true
+    for port in 80 443; do
+        iptables -D INPUT -p tcp --dport "$port" -j DROP 2>/dev/null || true
+        for iface in lo bridge0 eth0 tailscale0; do
+            iptables -D INPUT -i "$iface" -p tcp --dport "$port" -j ACCEPT 2>/dev/null || true
+        done
     done
 fi
 
