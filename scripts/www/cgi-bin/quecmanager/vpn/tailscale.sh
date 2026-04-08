@@ -455,7 +455,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             sleep 1
         fi
 
-        # Send response before removing firewall (avoids killing HTTP connection)
+        # Send response before background uninstall (avoids killing HTTP connection)
         cgi_success
 
         # Uninstall in background AFTER response, then restart firewall to drop tailscale0

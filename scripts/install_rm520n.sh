@@ -781,34 +781,12 @@ start_services() {
         info "Set /dev/smd11 permissions for dialout group"
     fi
 
-    # iptables rules — allow access to web UI and SSH
-    # Default RM520N-GL firewall drops non-bridge/eth traffic; replaces simplefirewall
-    if ! iptables -C INPUT -i lo -p tcp --dport 80 -j ACCEPT 2>/dev/null; then
-        iptables -I INPUT 1 -i lo -p tcp --dport 80 -j ACCEPT
-        info "Added iptables loopback rule for port 80"
-    fi
-    if ! iptables -C INPUT -i lo -p tcp --dport 443 -j ACCEPT 2>/dev/null; then
-        iptables -I INPUT 1 -i lo -p tcp --dport 443 -j ACCEPT
-        info "Added iptables loopback rule for port 443"
-    fi
-
-    # External access — HTTP, HTTPS, SSH on LAN interfaces (bridge0, eth0)
-    for port in 80 443 22; do
-        if ! iptables -C INPUT -i bridge0 -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
-            iptables -A INPUT -i bridge0 -p tcp --dport "$port" -j ACCEPT
-        fi
-        if ! iptables -C INPUT -i eth0 -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
-            iptables -A INPUT -i eth0 -p tcp --dport "$port" -j ACCEPT
-        fi
-    done
-    info "Added iptables LAN access rules for ports 80, 443, 22"
+    # Start firewall before lighttpd (protects web UI before accepting connections)
+    systemctl start qmanager-firewall 2>/dev/null || true
 
     # Restart lighttpd to pick up new config
     systemctl restart lighttpd 2>/dev/null || warn "Could not restart lighttpd"
     info "lighttpd restarted with QManager config"
-
-    # Start firewall first (protects web UI before lighttpd accepts connections)
-    systemctl start qmanager-firewall 2>/dev/null || true
 
     # Run setup oneshot (creates lock files, session dirs, permissions)
     systemctl start qmanager-setup 2>/dev/null || true

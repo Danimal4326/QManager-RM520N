@@ -51,7 +51,7 @@ fi
 printf "\n  ${BOLD}QManager — RM520N-GL Uninstaller${NC}\n\n"
 
 # --- Stop and disable systemd services ---
-for svc in qmanager-poller qmanager-ping qmanager-watchcat \
+for svc in qmanager-firewall qmanager-poller qmanager-ping qmanager-watchcat \
            qmanager-tower-failover qmanager-ttl qmanager-mtu \
            qmanager-imei-check; do
     systemctl stop "$svc" 2>/dev/null || true
@@ -125,9 +125,8 @@ rmdir "$QMANAGER_ROOT" 2>/dev/null || true
 
 # --- Remove firewall rules ---
 rm -f /etc/firewall.user.ttl /etc/firewall.user.mtu 2>/dev/null || true
-# Stop the firewall service — this runs ExecStop which removes all iptables rules
-systemctl stop qmanager-firewall 2>/dev/null || true
-# Fallback: manually clean up if the service didn't exist or failed
+# Firewall service was stopped above (runs ExecStop to remove rules).
+# Fallback: manually clean up if the service was already deleted or failed.
 if command -v iptables >/dev/null 2>&1; then
     for port in 80 443; do
         iptables -D INPUT -p tcp --dport "$port" -j DROP 2>/dev/null || true

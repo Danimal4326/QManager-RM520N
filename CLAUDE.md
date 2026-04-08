@@ -108,7 +108,7 @@ QManager installs independently — no SimpleAdmin or RGMII toolkit required:
 - **Cell scanner operator lookup:** `qmanager_cell_scanner` uses `operator-list.json` from `/usrdata/qmanager/www/cgi-bin/quecmanager/` for MCC/MNC → provider name resolution. The jq expression handles both `--slurpfile` (wrapped array) and `--argjson` (direct) operator input.
 - **Installer internet resilience:** `opkg update` failure is caught gracefully — all Entware package installs are skipped with clear warnings. The rest of the install (scripts, frontend, systemd units) continues normally.
 - **Port firewall:** `qmanager-firewall.service` restricts web UI (ports 80/443) to trusted interfaces (lo, bridge0, eth0, tailscale0 if installed). Blocks cellular-side access. Replaces SimpleAdmin's `simplefirewall` — QManager-owned, installed by default. SSH (22) intentionally left open for emergency access.
-- **Tailscale VPN:** Installed on-demand via `qmanager_tailscale_mgr` helper — downloads ARM binary from `pkgs.tailscale.com`, stores at `/usrdata/tailscale/`. Service controlled via `tailscaled.service`. Boot persistence via symlink into `multi-user.target.wants/`. Firewall adds iptables rules for `tailscale0` interface. No dependency on SimpleAdmin.
+- **Tailscale VPN:** Installed on-demand via `qmanager_tailscale_mgr` helper — downloads ARM binary from `pkgs.tailscale.com`, stores at `/usrdata/tailscale/`. Service controlled via `tailscaled.service`. Boot persistence via symlink into `multi-user.target.wants/`. Firewall service automatically trusts `tailscale0` when Tailscale is installed. No dependency on SimpleAdmin.
 
 ## Removed/Deferred Features (dev-rm520 Branch)
 
