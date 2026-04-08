@@ -1,64 +1,64 @@
-# 🚀 QManager RM520N BETA v0.1.1 — First Release
+# QManager RM520N BETA v0.1.2
 
-**The first public release of QManager for the Quectel RM520N-GL.** A modern, full-featured web management interface running natively on the modem's internal Linux OS — a ground-up port from the RM551E/OpenWRT variant.
+**Stability and installer improvements** — fixes SMS multi-part messages, adds SSH password management, bundles Speedtest CLI, and hardens the installer for reliable upgrades.
 
-> **⚠ First release disclaimer:** This is the very first release for the RM520N-GL platform. While it has been tested, there will be bugs. If possible, **please test on a spare modem first** before deploying on your primary device. Your bug reports help make QManager better for everyone — [open an issue](https://github.com/dr-dolomite/QManager-RM520N/issues) if you run into anything.
-
----
-
-## ✨ What's Inside
-
-**35 pages** · **173 components** · **59 CGI endpoints** · **12 shell libraries** · **8 systemd services**
-
-### 📡 Signal & Network Monitoring
-
-- **Live Signal Dashboard** — Real-time RSRP, RSRQ, SINR with per-antenna values (4x4 MIMO) and 30-minute historical charts
-- **Antenna Statistics** — Per-port signal breakdown with quality indicators for all 4 antenna ports
-- **Antenna Alignment** — 3-position recording tool with composite RSRP+SINR scoring to recommend best antenna placement
-- **Network Events** — Automatic detection of band changes, cell handoffs, and carrier aggregation changes
-- **Latency Monitoring** — Real-time ping with 24-hour history, jitter, packet loss, and aggregated views
-- **Traffic Statistics** — Live throughput (Mbps) and cumulative data usage
-
-### 🔧 Cellular Configuration
-
-- **Band Locking** — Select and lock specific LTE/NR bands with automatic band failover
-- **Tower Locking** — Lock to a specific cell by PCI with automatic failover and scheduled changes
-- **Frequency Locking** — Lock to exact EARFCN/ARFCN channels
-- **APN Management** — Create, edit, delete APN profiles with MNO presets (T-Mobile, AT&T, Verizon, etc.)
-- **Custom SIM Profiles** — Save complete configs (APN + TTL/HL + optional IMEI) per SIM, with ICCID-based auto-apply on SIM swap or boot
-- **Connection Scenarios** — Save and restore full network configuration snapshots
-- **Network Priority** — Configure preferred network types and selection modes
-- **Cell Scanner** — Active and neighbor cell scanning with signal comparison
-- **Frequency Calculator** — EARFCN/ARFCN to frequency conversion tool
-- **SMS Center** — Send and receive SMS messages directly from the interface
-- **IMEI Settings** — Read, backup, and modify device IMEI (with integrity check at boot)
-- **FPLMN Management** — View and manage the Forbidden PLMN list
-- **MBN Configuration** — Select and activate modem broadband configuration files
-
-### 🌐 Network Settings
-
-- **TTL/HL Settings** — IPv4 TTL and IPv6 Hop Limit via iptables (applied at boot)
-- **MTU Configuration** — Dynamic MTU application for rmnet interfaces
-- **IP Passthrough** — Direct IP assignment to downstream devices
-
-### 🛡️ Reliability & Monitoring
-
-- **Connection Watchdog** — 4-tier auto-recovery: AT+COPS deregister/reregister → CFUN toggle → SIM failover → full reboot (with token bucket rate limiting)
-- **Low Power Mode** — Scheduled CFUN power-down windows via cron
-- **Software Updates** — In-app OTA update checking, download, SHA-256 verification, installation, and rollback
-- **System Logs** — Centralized log viewer with search
-
-### 🎨 Interface
-
-- **Dark/Light Mode** — Full theme support with OKLCH perceptual color system
-- **Responsive Design** — Works on desktop monitors and tablets in the field
-- **Cookie-Based Auth** — Secure session management with rate limiting
-- **AT Terminal** — Direct AT command interface for advanced users
-- **Setup Wizard** — Guided onboarding for first-time configuration
+> Upgrading from v0.1.1? Go to **System Settings -> Software Update** or re-run the installer via ADB/SSH. All existing settings and profiles are preserved.
 
 ---
 
-## 📥 Installation
+## What's New
+
+### SMS Multi-Part Message Support
+
+SMS messages that span multiple segments (common for carrier notifications) are now properly reassembled and displayed as a single message. Previously, each segment appeared as a separate entry in the inbox.
+
+- Switched SMS backend to `sms_tool` which handles PDU-level multi-part reassembly natively
+- Merged messages show all storage indexes for proper deletion
+- Sending and deleting SMS messages works reliably
+
+### SSH Password Management
+
+SSH access no longer requires manual `passwd root` setup via ADB.
+
+- **Automatic setup during onboarding** — the web UI password you set during first-time setup is automatically applied as the SSH root password
+- **System Settings > SSH Password** — new card to change the SSH password independently from the web UI password at any time
+- Connect via `ssh root@192.168.225.1` using the password set during onboarding or from the settings card
+
+### Speedtest CLI Auto-Install
+
+The Ookla Speedtest CLI is now automatically downloaded and installed during QManager setup. No need to install it separately from the RGMII toolkit.
+
+- Downloaded from Ookla's servers during install (ARMv7 armhf binary)
+- Installed to `/usrdata/root/bin/speedtest` (persistent across reboots)
+- Non-fatal if download fails (feature shows as unavailable in the UI)
+
+### Cell Scanner Fix
+
+Cell scanning now works correctly with operator name resolution.
+
+- Fixed operator-list.json path for the RM520N-GL directory structure
+- Fixed JSON assembly crash when operator list is empty or missing
+- Provider names now resolve properly via MCC/MNC lookup
+
+---
+
+## Installer Improvements
+
+### Windows Line Ending Safety
+
+Tarballs built on Windows no longer cause script failures. The installer now strips `\r` (carriage return) characters from all deployed shell scripts, systemd units, and sudoers rules after copying them to the device.
+
+### lighttpd Module Version Sync
+
+When upgrading, the installer now runs `opkg upgrade` on lighttpd and all its modules together, preventing the `plugin-version doesn't match lighttpd-version` crash that could occur when modules were out of sync.
+
+### Graceful No-Internet Handling
+
+If `opkg update` fails due to no internet connection, the installer now prints clear warning messages and skips all Entware package installs instead of crashing. The rest of the installation (scripts, frontend, systemd units) continues normally. Re-run the installer with internet to complete package setup.
+
+---
+
+## Installation
 
 **No prerequisites required** — QManager is fully independent. The installer bootstraps Entware, installs lighttpd, and sets up everything from scratch. You only need ADB or SSH access and internet connectivity on the modem.
 
@@ -70,7 +70,13 @@ curl -fsSL -o /tmp/qmanager-installer.sh \
   bash /tmp/qmanager-installer.sh
 ```
 
-The interactive installer fetches the latest release, verifies the SHA-256 checksum, bootstraps Entware (if needed), installs lighttpd + `atcli_smd11` + `jq` + `dropbear`, configures systemd services, and reboots the modem.
+### Bundled Dependencies
+
+- `atcli_smd11` — AT command transport via `/dev/smd11`
+- `sms_tool` — SMS send/recv/delete with multi-part reassembly
+- `jq` — JSON processor (Entware package)
+- `dropbear` — SSH server (Entware package)
+- `speedtest` — Ookla Speedtest CLI (downloaded during install)
 
 ### Uninstalling
 
@@ -83,9 +89,9 @@ bash /tmp/qmanager_install/uninstall_rm520n.sh --purge
 
 ---
 
-## 📄 Platform Notes
+## Platform Notes
 
-This is a **native port** to the RM520N-GL's internal Linux (SDXLEMUR, ARMv7l, kernel 5.4.180) — not a wrapper around the OpenWRT variant. Uses systemd for service management, lighttpd for web serving, iptables for firewall rules, and `/usrdata/` for persistent storage.
+This is a **native port** to the RM520N-GL's internal Linux (SDXLEMUR, ARMv7l, kernel 5.4.180). Uses systemd for service management, lighttpd for web serving, iptables for firewall rules, and `/usrdata/` for persistent storage.
 
 ### Features Not Yet Ported
 
@@ -101,17 +107,18 @@ The following RM551E features are deferred due to platform differences:
 
 ---
 
-## ⚠️ Known Issues
+## Known Issues
 
 - This is a **pre-release** — please report bugs at [GitHub Issues](https://github.com/dr-dolomite/QManager-RM520N/issues).
 - Email alerts require `msmtp` which can be installed from within the app (System Settings).
+- BusyBox `flock` lacks `-w` (timeout flag) — all flock usage has been adapted to use non-blocking polling loops.
 
 ---
 
-## 💙 Thank You
+## Thank You
 
-Thanks for trying the first RM520N-GL release of QManager! If you find it useful, consider [supporting the project on Ko-fi](https://ko-fi.com/drdolomite) or [PayPal](https://paypal.me/iamrusss). Bug reports and feature requests are always welcome.
+Thanks for using QManager! If you find it useful, consider [supporting the project on Ko-fi](https://ko-fi.com/drdolomite) or [PayPal](https://paypal.me/iamrusss). Bug reports and feature requests are always welcome.
 
 **License:** MIT + Commons Clause
 
-**Happy connecting!** 📡
+**Happy connecting!**

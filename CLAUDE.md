@@ -104,6 +104,9 @@ QManager installs independently — no SimpleAdmin or RGMII toolkit required:
 - **SSH password management:** `qmanager_set_ssh_password` helper reads password from stdin, updates `/etc/shadow` via `openssl passwd -1`. Whitelisted in sudoers for www-data. Called automatically during onboarding (syncs web UI password to root), and independently from System Settings > SSH Password card.
 - **Windows line ending safety:** Installer strips `\r` from all deployed shell scripts, systemd units, and sudoers rules (`sed -i 's/\r$//'`) — prevents BusyBox/sudoers parse failures from Windows-built tarballs
 - **lighttpd module version sync:** Installer runs `opkg upgrade` on lighttpd + all modules together when already installed — prevents `plugin-version doesn't match` errors during upgrades
+- **Speedtest CLI:** Downloaded from `install.speedtest.net` (ookla-speedtest-1.2.0-linux-armhf.tgz) during install, placed at `/usrdata/root/bin/speedtest` with `/bin/speedtest` symlink. CGI scripts discover via `command -v speedtest`. Non-fatal if download fails.
+- **Cell scanner operator lookup:** `qmanager_cell_scanner` uses `operator-list.json` from `/usrdata/qmanager/www/cgi-bin/quecmanager/` for MCC/MNC → provider name resolution. The jq expression handles both `--slurpfile` (wrapped array) and `--argjson` (direct) operator input.
+- **Installer internet resilience:** `opkg update` failure is caught gracefully — all Entware package installs are skipped with clear warnings. The rest of the install (scripts, frontend, systemd units) continues normally.
 
 ## Removed/Deferred Features (dev-rm520 Branch)
 
