@@ -2,7 +2,13 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { authFetch } from "@/lib/auth-fetch";
-import type { InstallResult } from "@/types/video-optimizer";
+
+interface InstallResult {
+  success: boolean;
+  status: "idle" | "running" | "complete" | "error";
+  message?: string;
+  detail?: string;
+}
 
 // =============================================================================
 // useTailscale — Fetch & Action Hook for Tailscale VPN Management
@@ -60,8 +66,6 @@ export interface TailscaleStatus {
   health?: string[];
   install_hint?: string;
   error_detail?: string;
-  other_vpn_installed?: boolean;
-  other_vpn_name?: string;
 }
 
 export interface UseTailscaleReturn {
