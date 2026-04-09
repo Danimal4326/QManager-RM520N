@@ -11,24 +11,30 @@ import type { FitAddon } from "@xterm/addon-fit";
 // Handles the ttyd binary protocol for I/O, implements exponential backoff
 // reconnection, and bridges xterm.js terminal events to the WebSocket.
 //
-// ttyd receive message types:
-//   0 = OUTPUT         — terminal data to write
-//   1 = SET_WINDOW_TITLE — ignored
-//   2 = SET_PREFERENCES  — ignored
+// ttyd uses ASCII character codes as message type bytes (NOT raw integers).
 //
-// ttyd send message types:
-//   0 = INPUT  — keyboard/paste data from terminal
-//   1 = RESIZE — terminal resize event
+// Server → Client (receive):
+//   '0' (0x30) = OUTPUT         — terminal data to write
+//   '1' (0x31) = SET_WINDOW_TITLE — ignored
+//   '2' (0x32) = SET_PREFERENCES  — ignored
+//
+// Client → Server (send):
+//   '0' (0x30) = INPUT  — keyboard/paste data from terminal
+//   '1' (0x31) = RESIZE — terminal resize event
+//   '{'  (0x7B) = JSON_DATA — initial handshake (AuthToken + dimensions)
+//
+// The client MUST send a JSON_DATA message immediately on connect before
+// ttyd will start the shell. The opening '{' of the JSON IS the command byte.
+//
+// The WebSocket MUST use the 'tty' subprotocol.
 // =============================================================================
 
-// ─── Protocol constants ────────────────────────────────────────────────────
+// ─── Protocol constants (ASCII character codes) ────────────────────────────
 
-const RECV_OUTPUT = 0;
-// const RECV_SET_WINDOW_TITLE = 1;  // unused — kept for documentation
-// const RECV_SET_PREFERENCES = 2;   // unused — kept for documentation
+const RECV_OUTPUT = 0x30; // '0'
 
-const SEND_INPUT = 0;
-const SEND_RESIZE = 1;
+const SEND_INPUT = 0x30; // '0'
+const SEND_RESIZE = 0x31; // '1'
 
 // ─── Reconnect config ──────────────────────────────────────────────────────
 
@@ -185,7 +191,7 @@ export function useWebConsole({
     setConnectionState("connecting");
     openedAtRef.current = null;
 
-    const ws = new WebSocket(getWsUrl());
+    const ws = new WebSocket(getWsUrl(), ["tty"]);
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
@@ -207,7 +213,7 @@ export function useWebConsole({
           sendResize(cols, rows);
         });
 
-        // Send initial resize
+        // Fit terminal to container first
         const fit = fitAddonRef.current;
         if (fit) {
           try {
@@ -216,7 +222,16 @@ export function useWebConsole({
             // fit may throw if terminal is not yet visible — non-fatal
           }
         }
-        sendResize(terminal.cols, terminal.rows);
+
+        // Send JSON_DATA handshake — ttyd requires this before starting the shell.
+        // The opening '{' of the JSON IS the command byte (0x7B = JSON_DATA).
+        // No separate prefix byte — send the raw JSON string.
+        const handshake = JSON.stringify({
+          AuthToken: "",
+          columns: terminal.cols,
+          rows: terminal.rows,
+        });
+        ws.send(encoderRef.current.encode(handshake));
       }
     };
 
