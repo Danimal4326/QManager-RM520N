@@ -1,60 +1,103 @@
-# 🚀 QManager RM520N BETA v0.1.2
+# 🚀 QManager RM520N BETA v0.1.3
 
-**Stability and installer improvements** — fixes SMS multi-part messages, adds SSH password management, bundles Speedtest CLI, and hardens the installer for reliable upgrades.
+**Tailscale VPN, web console, email alerts, IMEI tools, and port firewall** — access your modem remotely via Tailscale, run commands in a browser-based terminal, get email notifications on connectivity events, generate and validate IMEIs, and protect the web UI from cellular-side access.
 
-> Upgrading from v0.1.1? Go to **System Settings -> Software Update** or re-run the installer via ADB/SSH. All existing settings and profiles are preserved.
+> Upgrading from v0.1.2? Go to **System Settings -> Software Update** or re-run the installer via ADB/SSH. All existing settings and profiles are preserved.
 
 ---
 
 ## ✨ What's New
 
-### 📱 SMS Multi-Part Message Support
+### 🔒 Tailscale VPN
 
-SMS messages that span multiple segments (common for carrier notifications) are now properly reassembled and displayed as a single message. Previously, each segment appeared as a separate entry in the inbox.
+Install, connect, and manage Tailscale directly from the QManager web UI. Access your modem remotely from any device on your Tailscale network.
 
-- Switched SMS backend to `sms_tool` which handles PDU-level multi-part reassembly natively
-- Merged messages show all storage indexes for proper deletion
-- Sending and deleting SMS messages works reliably
+- **One-click install** — downloads the latest stable ARM binary from Tailscale's CDN automatically (falls back to v1.92.5 if version detection fails)
+- **Connect & authenticate** — generates a login URL, opens it in a new tab, and auto-detects when authentication completes
+- **Connection status** — shows hostname, Tailscale IPs (IPv4/IPv6), DNS name, tailnet, DERP relay, and MagicDNS info
+- **Network peers** — table of all devices on your tailnet with online/offline status, OS, IP addresses, exit node indicators, and relative last-seen times
+- **Service control** — start/stop the Tailscale daemon, enable/disable on boot, disconnect, logout, or fully uninstall
+- **Health warnings** — surfaces Tailscale health check messages (filtered to suppress the expected `--accept-routes` warning)
+- **Survives reboot** — daemon auto-starts on boot with persisted auth state
+- **No SimpleAdmin dependency** — works on clean-flashed devices without the RGMII toolkit
 
-### 🔑 SSH Password Management
+Navigate to **Monitoring > Tailscale VPN** in the sidebar.
 
-SSH access no longer requires manual `passwd root` setup via ADB.
+### 💻 Web Console
 
-- **Automatic setup during onboarding** — the web UI password you set during first-time setup is automatically applied as the SSH root password
-- **System Settings > SSH Password** — new card to change the SSH password independently from the web UI password at any time
-- Connect via `ssh root@192.168.225.1` using the password set during onboarding or from the settings card
+A browser-based terminal is now built into QManager — no need for SimpleAdmin's ttyd setup or separate SSH clients for quick commands.
 
-### 🚄 Speedtest CLI Auto-Install
+- **Integrated into the QManager UI** — the console renders inside a card matching the AT Terminal design, with the sidebar staying visible
+- **ttyd v1.7.7** — lightweight web terminal downloaded automatically during install
+- **Connection status bar** — shows live connection state (Connected/Disconnected/Reconnecting) with automatic reconnect and exponential backoff — resilient on flaky cellular connections
+- **Fullscreen mode** — expand the terminal to fill the entire viewport with one click
+- **Dark theme** — colors match QManager's UI (zinc-950 background, zinc-200 text)
+- **Full Entware PATH** — `/opt/bin`, `/opt/sbin` included so Entware packages work out of the box
+- **Graceful unavailable state** — if ttyd isn't installed or isn't running, shows a clear message with a Retry button instead of a broken page
+- **Protected by QManager auth** — same session cookie as the rest of the UI
+- **Non-fatal install** — if the ttyd download fails (no internet), everything else works normally
 
-The Ookla Speedtest CLI is now automatically downloaded and installed during QManager setup. No need to install it separately from the RGMII toolkit.
+Navigate to **System > Web Console** in the sidebar.
 
-- Downloaded from Ookla's servers during install (ARMv7 armhf binary)
-- Installed to `/usrdata/root/bin/speedtest` (persistent across reboots)
-- Non-fatal if download fails (feature shows as unavailable in the UI)
+### 📧 Email Alerts
 
-### 📡 Cell Scanner Fix
+Get notified by email when your modem loses and recovers internet connectivity. Previously deferred from the RM520N-GL port, now fully enabled.
 
-Cell scanning now works correctly with operator name resolution.
+- **Automatic recovery alerts** — sends an HTML email when internet returns after a downtime exceeding your configured threshold
+- **Configurable threshold** — set minimum downtime (1-60 minutes) before an alert is triggered
+- **Gmail app password support** — configure sender email, recipient, and Google app password
+- **Install msmtp from UI** — one-click install of the `msmtp` mail client from Entware
+- **Test email** — verify your configuration works before waiting for an actual outage
+- **Alert log** — view history of sent alerts with timestamps, trigger type, and delivery status
 
-- Fixed operator-list.json path for the RM520N-GL directory structure
-- Fixed JSON assembly crash when operator list is empty or missing
-- Provider names now resolve properly via MCC/MNC lookup
+Navigate to **Monitoring > Network Events > Email Alerts** in the sidebar.
+
+### 🔢 IMEI Tools
+
+A new IMEI Generator and Validator is now available under IMEI Settings — no backend needed, runs entirely in the browser.
+
+- **Generate valid IMEIs** — select a device TAC preset or enter a custom 8–12 digit prefix; the tool fills the remaining digits and computes the Luhn check digit
+- **Device presets** — ships with common TACs (Samsung, Apple, Google, Xiaomi, OnePlus, Quectel RM520N-GL) and a "Custom Prefix" option
+- **Real-time Luhn validation** — paste or type any 15-digit IMEI and see a Valid/Invalid badge instantly
+- **IMEI breakdown** — shows TAC (1–8), Serial Number (9–14), and Check Digit (15) in a structured display
+- **Check on imei.info** — one-click external lookup for any generated or entered IMEI
+- **Copy to clipboard** — grab the generated IMEI with one click
+- **For educational purposes only** — generated IMEIs pass Luhn validation but are not registered with any network
+
+Navigate to **Cellular > Settings > IMEI Settings** in the sidebar.
+
+### 🛡️ Port Firewall
+
+A new built-in firewall service replaces SimpleAdmin's `simplefirewall`, protecting the web UI from unauthorized access on the cellular interface.
+
+- **Ports 80/443 restricted** to trusted interfaces: loopback, bridge0 (LAN), eth0 (Ethernet), and tailscale0 (if installed)
+- **Cellular access blocked** — DROP rules prevent anyone on the cellular/WAN side from reaching the admin panel
+- **SSH (port 22) intentionally left open** — emergency access is never blocked
+- **Starts before lighttpd** — firewall rules are active before the web server accepts connections
+- **Tailscale-aware** — automatically trusts the tailscale0 interface when Tailscale is installed; restarts itself after Tailscale install/uninstall to update trusted interfaces
+- **Enabled by default** — installed and activated during QManager setup, no configuration needed
 
 ---
 
 ## 🔧 Installer Improvements
 
-### Windows Line Ending Safety
+- **Firewall service** is now part of the always-on service list, started and verified during install
+- **Tailscale systemd units** are staged in `/usr/lib/qmanager/` for on-demand installation via the helper script
+- **Removed ad-hoc iptables rules** from `qmanager_setup` and the installer's `start_services()` — all port firewall management is centralized in `qmanager-firewall.service`
+- **Web console (ttyd)** is downloaded during install and enabled as an always-on service; non-fatal if download fails
 
-Tarballs built on Windows no longer cause script failures. The installer now strips `\r` (carriage return) characters from all deployed shell scripts, systemd units, and sudoers rules after copying them to the device.
+---
 
-### lighttpd Module Version Sync
+## 🐛 Bug Fixes
 
-When upgrading, the installer now runs `opkg upgrade` on lighttpd and all its modules together, preventing the `plugin-version doesn't match lighttpd-version` crash that could occur when modules were out of sync.
-
-### Graceful No-Internet Handling
-
-If `opkg update` fails due to no internet connection, the installer now prints clear warning messages and skips all Entware package installs instead of crashing. The rest of the installation (scripts, frontend, systemd units) continues normally. Re-run the installer with internet to complete package setup.
+- **Fixed reboot fetch missing `keepalive`** — the reboot request from the Tailscale uninstall dialog now uses `keepalive: true` and sends the proper request body, matching the nav-user reboot pattern. Previously the request could be cancelled by the browser during page navigation.
+- **Fixed Tailscale not surviving reboot** — two root causes: (1) tailscaled resets its state directory to `700` on every start, blocking the CGI from detecting the installation — `is_installed()` now checks the world-readable systemd unit file instead of traversing the restricted directory; (2) rootfs writes (unit file, boot symlink) weren't flushed before remounting read-only — added `sync` before every `mount -o remount,ro /` in the helper.
+- **Fixed `tailscale up --json` output buffering** — the `--json` flag's output is fully buffered on RM520N-GL (no `stdbuf` available) and never flushes to file. Switched to interactive mode with grep-based URL parsing.
+- **Fixed cellular sidebar nav highlighting** — "Cellular Information" no longer stays highlighted when navigating to other cellular sections like Settings. Active state now checks declared sub-item URLs instead of prefix matching.
+- **Fixed poller logging silently failing** — `/tmp/qmanager.log` was owned by www-data, blocking root (poller) from writing due to `fs.protected_regular=1`. Now pre-created as root-owned with mode 666. This also fixed email alerts never triggering (poller couldn't track downtime state).
+- **Fixed msmtp returning rc=1 on successful sends** — msmtp's `logfile` directive caused it to report failure when it couldn't write to `/tmp/msmtp.log` (same ownership issue). Removed the logfile directive from generated msmtprc — QManager has its own logging.
+- **Fixed msmtp binary not found in poller context** — the poller runs without `/opt/bin` in PATH. Now detects `/opt/bin/msmtp` explicitly at library load time.
+- **Added 30s stabilization delay for recovery emails** — after cellular radio recovery, DNS/SMTP need time to stabilize. Previously all 3 retry attempts fired too quickly and failed.
 
 ---
 
@@ -70,13 +113,7 @@ curl -fsSL -o /tmp/qmanager-installer.sh \
   bash /tmp/qmanager-installer.sh
 ```
 
-### Bundled Dependencies
-
-- `atcli_smd11` — AT command transport via `/dev/smd11`
-- `sms_tool` — SMS send/recv/delete with multi-part reassembly
-- `jq` — JSON processor (Entware package)
-- `dropbear` — SSH server (Entware package)
-- `speedtest` — Ookla Speedtest CLI (downloaded during install)
+> **Note:** Use `scp -O` (legacy mode) when transferring files to the modem — dropbear lacks an SFTP subsystem.
 
 ### Uninstalling
 
@@ -91,26 +128,23 @@ bash /tmp/qmanager_install/uninstall_rm520n.sh --purge
 
 ## 📄 Platform Notes
 
-This is a **native port** to the RM520N-GL's internal Linux (SDXLEMUR, ARMv7l, kernel 5.4.180). Uses systemd for service management, lighttpd for web serving, iptables for firewall rules, and `/usrdata/` for persistent storage.
-
 ### Features Not Yet Ported
 
 The following RM551E features are deferred due to platform differences:
 
-- VPN management (Tailscale + NetBird) — **for Tailscale, please use the [RGMII Toolkit](https://github.com/iamromulan/quectel-rgmii-toolkit) for now**
+- VPN management (NetBird) — Tailscale is now available, NetBird remains deferred
 - Video optimizer / traffic masquerade (DPI)
 - Bandwidth monitor
 - Ethernet status & link speed
 - Custom DNS
 - WAN interface guard
-- Email Alerts
 
 ---
 
 ## ⚠️ Known Issues
 
 - This is a **pre-release** — please report bugs at [GitHub Issues](https://github.com/dr-dolomite/QManager-RM520N/issues).
-- Email alerts require `msmtp` which can be installed from within the app (System Settings).
+- Tailscale's `--accept-routes` flag must **never** be used — it disconnects the device from the network entirely and requires a physical reboot to recover.
 - BusyBox `flock` lacks `-w` (timeout flag) — all flock usage has been adapted to use non-blocking polling loops.
 
 ---
@@ -121,4 +155,4 @@ Thanks for using QManager! If you find it useful, consider [supporting the proje
 
 **License:** MIT + Commons Clause
 
-**Happy connecting!**
+**Happy connecting!** 🎉
