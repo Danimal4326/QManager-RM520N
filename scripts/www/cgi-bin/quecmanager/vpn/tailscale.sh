@@ -273,8 +273,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             status_json='{"success":true,"status":"running","message":"Installing..."}'
         fi
 
+        # Translate CR→LF so curl's \r-separated progress updates each land
+        # on their own line, then tail after the translation — otherwise a
+        # whole download's worth of progress bar collapses into one huge line.
         if [ -f "$INSTALL_LOG" ]; then
-            log_tail=$(tail -n 50 "$INSTALL_LOG" 2>/dev/null | tr -d '\000\r')
+            log_tail=$(tr '\r' '\n' < "$INSTALL_LOG" 2>/dev/null | tr -d '\000' | tail -n 50)
         else
             log_tail=""
         fi
