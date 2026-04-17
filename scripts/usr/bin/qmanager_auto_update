@@ -21,7 +21,7 @@ qlog_init "auto_update"
 
 # --- Configuration -----------------------------------------------------------
 
-REPO="dr-dolomite/QManager-RM520N"
+DEFAULT_REPO="dr-dolomite/QManager-RM520N"
 VERSION_FILE="/etc/qmanager/VERSION"
 PID_FILE="/tmp/qmanager_update.pid"
 UPDATER="/usr/bin/qmanager_update"
@@ -43,6 +43,8 @@ current_version=$(tr -d '[:space:]' < "$VERSION_FILE" 2>/dev/null)
 [ -z "$current_version" ] && current_version="0.0.0"
 
 include_prerelease=$(qm_config_get update include_prerelease 1)
+_custom_repo=$(qm_config_get update custom_repo "")
+REPO="${_custom_repo:-$DEFAULT_REPO}"
 
 # --- Fetch GitHub releases ---------------------------------------------------
 

@@ -56,7 +56,8 @@ qm_config_init() {
   "update": {
     "include_prerelease": 1,
     "auto_update_enabled": 0,
-    "auto_update_time": "03:00"
+    "auto_update_time": "03:00",
+    "custom_repo": ""
   }
 }
 DEFAULTS

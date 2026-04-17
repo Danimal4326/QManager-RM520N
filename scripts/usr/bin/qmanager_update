@@ -90,10 +90,10 @@ if [ "$MODE" = "install" ]; then
     VERSION="$3"
     SIZE="$4"
 
-    # Validate URL origin (prevent SSRF)
+    # Validate URL origin (prevent SSRF — must be a GitHub release tarball)
     case "$URL" in
-        https://github.com/dr-dolomite/QManager-RM520N/releases/download/*/qmanager.tar.gz) ;;
-        https://github.com/dr-dolomite/QManager-RM520N/raw/*/qmanager-build/qmanager.tar.gz) ;;
+        https://github.com/*/releases/download/*/qmanager.tar.gz) ;;
+        https://github.com/*/raw/*/qmanager-build/qmanager.tar.gz) ;;
         *) die "Invalid download URL" ;;
     esac
 
@@ -161,9 +161,9 @@ if [ "$MODE" = "download" ]; then
     STAGED_TARBALL="/tmp/qmanager_staged.tar.gz"
     STAGED_VERSION="/tmp/qmanager_staged_version"
 
-    # Validate URL origin (prevent SSRF)
+    # Validate URL origin (prevent SSRF — must be a GitHub release tarball)
     case "$URL" in
-        https://github.com/dr-dolomite/QManager-RM520N/releases/download/*/qmanager.tar.gz) ;;
+        https://github.com/*/releases/download/*/qmanager.tar.gz) ;;
         *) die "Invalid download URL" ;;
     esac
 
@@ -281,9 +281,9 @@ if [ "$MODE" = "rollback" ]; then
         die "Rollback requires URL and version arguments"
     fi
 
-    # Validate URL origin (prevent SSRF)
+    # Validate URL origin (prevent SSRF — must be a GitHub release tarball)
     case "$URL" in
-        https://github.com/dr-dolomite/QManager-RM520N/releases/download/*/qmanager.tar.gz) ;;
+        https://github.com/*/releases/download/*/qmanager.tar.gz) ;;
         *) die "Invalid rollback URL" ;;
     esac
 

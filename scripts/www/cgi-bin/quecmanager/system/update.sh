@@ -25,7 +25,7 @@ cgi_handle_options
 
 # --- Configuration -----------------------------------------------------------
 
-GITHUB_REPO="dr-dolomite/QManager-RM520N"
+DEFAULT_GITHUB_REPO="dr-dolomite/QManager-RM520N"
 VERSION_FILE="/etc/qmanager/VERSION"
 UPDATES_DIR="/etc/qmanager/updates"
 STATUS_FILE="/tmp/qmanager_update.json"
@@ -48,6 +48,17 @@ uci_update_get() {
 
 ensure_update_config() {
     qm_config_init
+}
+
+# Returns the active GitHub repo (custom if set, default otherwise)
+get_github_repo() {
+    local _cr
+    _cr=$(uci_update_get custom_repo "")
+    if [ -n "$_cr" ]; then
+        printf '%s' "$_cr"
+    else
+        printf '%s' "$DEFAULT_GITHUB_REPO"
+    fi
 }
 
 strip_leading_zero() {
@@ -101,7 +112,7 @@ semver_compare() {
     case "$a" in *-*) a_pre="${a#*-}" ;; esac
     case "$b" in *-*) b_pre="${b#*-}" ;; esac
 
-    local a1 a2 a3 b1 b2 b3
+    local a1 a2 a3 b1 b2 b3 _lesser
     IFS='.' read a1 a2 a3 <<EOF
 $a_ver
 EOF
@@ -159,6 +170,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     include_prerelease=$(uci_update_get include_prerelease "1")
     auto_enabled=$(uci_update_get auto_update_enabled "0")
     auto_time=$(uci_update_get auto_update_time "03:00")
+    custom_repo=$(uci_update_get custom_repo "")
+    GITHUB_REPO=$(get_github_repo)
 
     # Query GitHub Releases API with header capture for rate-limit detection
     api_url="https://api.github.com/repos/$GITHUB_REPO/releases"
@@ -173,6 +186,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             --argjson prerelease "$include_prerelease" \
             --arg auto_en "$auto_enabled" \
             --arg auto_time "$auto_time" \
+            --arg custom_repo "$custom_repo" \
             '{
                 success: true, current_version: $cv,
                 latest_version: null, update_available: false,
@@ -182,6 +196,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
                 include_prerelease: ($prerelease == 1),
                 auto_update_enabled: ($auto_en == "1"),
                 auto_update_time: $auto_time,
+                custom_repo: $custom_repo,
                 check_error: "Unable to check for updates. Check your internet connection."
             }'
         exit 0
@@ -206,6 +221,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             --arg err "$wait_msg" \
             --arg auto_en "$auto_enabled" \
             --arg auto_time "$auto_time" \
+            --arg custom_repo "$custom_repo" \
             '{
                 success: true, current_version: $cv,
                 latest_version: null, update_available: false,
@@ -215,6 +231,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
                 include_prerelease: ($prerelease == 1),
                 auto_update_enabled: ($auto_en == "1"),
                 auto_update_time: $auto_time,
+                custom_repo: $custom_repo,
                 check_error: $err
             }'
         exit 0
@@ -303,6 +320,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --argjson prerelease "$include_prerelease" \
         --arg auto_en "$auto_enabled" \
         --arg auto_time "$auto_time" \
+        --arg custom_repo "$custom_repo" \
         '{
             success: true,
             current_version: $cv,
@@ -317,6 +335,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             include_prerelease: ($prerelease == 1),
             auto_update_enabled: ($auto_en == "1"),
             auto_update_time: $auto_time,
+            custom_repo: $custom_repo,
             check_error: null
         }'
     exit 0
@@ -404,6 +423,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             cgi_error "missing_version" "version is required"; exit 0
         fi
 
+        ensure_update_config
+        GITHUB_REPO=$(get_github_repo)
         download_url="https://github.com/${GITHUB_REPO}/releases/download/${version}/qmanager.tar.gz"
         checksum_url="https://github.com/${GITHUB_REPO}/releases/download/${version}/sha256sum.txt"
 
@@ -453,10 +474,31 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             exit 0
         fi
 
+        ensure_update_config
+        GITHUB_REPO=$(get_github_repo)
         rollback_version=$(cat "$UPDATES_DIR/previous_version" 2>/dev/null)
         rollback_url="https://github.com/${GITHUB_REPO}/releases/download/${rollback_version}/qmanager.tar.gz"
         jq -n --arg v "$rollback_version" '{"success":true,"status":"starting","version":$v}'
         ( "$UPDATER" rollback "$rollback_url" "$rollback_version" </dev/null >>/tmp/qmanager_update.log 2>&1 & )
+        exit 0
+    fi
+
+    # --- Save custom repository ---
+    if [ "$ACTION" = "save_custom_repo" ]; then
+        ensure_update_config
+        repo=$(printf '%s' "$POST_DATA" | jq -r '.repo // empty')
+
+        if [ -n "$repo" ]; then
+            # Validate owner/repo format (alphanumeric, hyphens, dots, underscores)
+            if ! printf '%s' "$repo" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
+                cgi_error "invalid_repo" "repo must be in owner/repo format (e.g. myname/QManager-RM520N)"
+                exit 0
+            fi
+        fi
+
+        qm_config_set update custom_repo "$repo"
+        qlog_info "Custom repo set to: '${repo}'"
+        jq -n --arg repo "$repo" '{"success":true,"custom_repo":$repo}'
         exit 0
     fi
 

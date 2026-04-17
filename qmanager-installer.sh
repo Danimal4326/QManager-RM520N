@@ -11,12 +11,24 @@
 #
 # Environment variables:
 #   QMANAGER_VERSION  Pin a specific release version (default: latest including pre-releases)
+#   QMANAGER_REPO     Use a custom GitHub repository in owner/repo format
+#                     (default: dr-dolomite/QManager-RM520N)
 #
 # ==============================================================================
 
 # --- Configuration -----------------------------------------------------------
 
 GITHUB_REPO="dr-dolomite/QManager-RM520N"
+
+# Apply environment variable overrides
+if [ -n "${QMANAGER_REPO:-}" ]; then
+    if ! printf '%s' "$QMANAGER_REPO" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
+        printf "  Error: QMANAGER_REPO must be in owner/repo format (e.g. myname/QManager-RM520N)\n" >&2
+        exit 1
+    fi
+    GITHUB_REPO="$QMANAGER_REPO"
+fi
+
 GITHUB_API="https://api.github.com/repos/${GITHUB_REPO}/releases"
 ARCHIVE_PATH="/tmp/qmanager.tar.gz"
 CHECKSUM_PATH="/tmp/qmanager_sha256sum.txt"
@@ -317,6 +329,9 @@ show_menu() {
         printf "  Status: ${GREEN}Installed${NC}\n"
     else
         printf "  Status: ${DIM}Not installed${NC}\n"
+    fi
+    if [ "$GITHUB_REPO" != "dr-dolomite/QManager-RM520N" ]; then
+        printf "  Repo:   ${YELLOW}%s${NC}\n" "$GITHUB_REPO"
     fi
     printf "\n"
 
