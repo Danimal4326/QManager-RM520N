@@ -1,13 +1,16 @@
-# 🚀 QManager RM520N BETA v0.1.6
+# 🚀 QManager RM520N v0.1.7-beta.1.dc
 
-A focused hotfix for **TTL & Hop Limit Configuration** on RM520N-GL. Saving TTL/HL now reflects correctly in the UI and survives a page refresh — and disabling actually disables.
+**Configurable session timeout, custom update repository** — Sessions can now be set to any duration (or never expire) from System Settings. Updates can be pulled from any GitHub fork, both in the UI and via the `QMANAGER_REPO` env var in the installer.
 
-> One-click OTA from **System Settings → Software Update** if you're on v0.1.5. SSH/ADB is no longer required.
+## ✨ What's New
 
-## 🛠️ Fixes
+### 🔒 Configurable Session Timeout
 
-- **TTL/HL save no longer resets to disabled after refresh.** The live-state reader was passing a duplicate flag that legacy iptables on RM520N-GL rejects, so the form mistakenly reported "disabled" right after a successful save. The form now mirrors the actual kernel state.
-- **TTL/HL disable now fully clears the rules.** The apply path used to remove only one rule per save, so duplicate or stale rules from past changes could survive a disable and silently re-appear in the UI. The chain is now drained completely on every apply, with a hard cap to prevent runaway loops.
+A new **Security** card under System Settings lets you set how long a session stays active before requiring re-login. Choose any duration in minutes, hours, or days, or enable **Never expire** for persistent sessions (browser-side cookie uses the 400-day maximum; server enforces the setting on every request).
+
+### 🔄 Custom Update Repository
+
+The Software Update preferences card now includes an **Update Repository** field. Enter any `owner/repo` GitHub fork to pull updates from — useful for testing forks or staging builds. Leave empty to use the default (`dr-dolomite/QManager-RM520N`). The installer also accepts a `QMANAGER_REPO` environment variable for the same purpose.
 
 ## 📥 Installation
 
