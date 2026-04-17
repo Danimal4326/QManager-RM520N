@@ -42,6 +42,11 @@ export interface SaveScheduledRebootPayload {
   days: number[];
 }
 
+export interface SaveSecurityPayload {
+  action: "save_security";
+  session_max_age: number;
+}
+
 // ─── Save Response Types ──────────────────────────────────────────────────
 
 // Outcome of pushing the configured timezone to the live device clock.
@@ -85,6 +90,7 @@ export interface UseSystemSettingsReturn {
   saveScheduledReboot: (
     payload: SaveScheduledRebootPayload,
   ) => Promise<ScheduledRebootSaveResult>;
+  saveSecuritySettings: (payload: SaveSecurityPayload) => Promise<boolean>;
   refresh: () => void;
 }
 
@@ -153,7 +159,8 @@ export function useSystemSettings(): UseSystemSettingsReturn {
     async (
       payload:
         | SaveSettingsPayload
-        | SaveScheduledRebootPayload,
+        | SaveScheduledRebootPayload
+        | SaveSecurityPayload,
     ): Promise<PostActionResult> => {
       setError(null);
       setIsSaving(true);
@@ -183,11 +190,14 @@ export function useSystemSettings(): UseSystemSettingsReturn {
           setScheduledReboot(json.scheduled_reboot);
         }
 
-        // Re-fetch for save_settings (preferences) which doesn't return
+        // Re-fetch for save_settings / save_security, which don't return
         // schedule data — and to sync any other state we didn't capture above.
         // The silent re-fetch also pulls the fresh timezone ground-truth fields
         // (effective_offset / timezone_applied) so the card can render its badge.
-        if (payload.action === "save_settings") {
+        if (
+          payload.action === "save_settings" ||
+          payload.action === "save_security"
+        ) {
           // Config saved, but the zone did not reach the live clock. Warn the
           // user honestly (partial success); the settings themselves persisted.
           if (json.timezone_apply_status === "failed") {
@@ -231,6 +241,12 @@ export function useSystemSettings(): UseSystemSettingsReturn {
     [postAction],
   );
 
+  const saveSecuritySettings = useCallback(
+    async (payload: SaveSecurityPayload) =>
+      (await postAction(payload)).success,
+    [postAction],
+  );
+
   return {
     settings,
     scheduledReboot,
@@ -239,6 +255,7 @@ export function useSystemSettings(): UseSystemSettingsReturn {
     error,
     saveSettings,
     saveScheduledReboot,
+    saveSecuritySettings,
     refresh: fetchSettings,
   };
 }
