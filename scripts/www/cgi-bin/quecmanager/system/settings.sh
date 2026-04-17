@@ -52,6 +52,9 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     eff_applied=$(printf '%s' "$eff_tz" | cut -d' ' -f3)
     eff_abbr=$(printf '%s' "$eff_tz" | cut -d' ' -f4)
 
+    # --- Security ---
+    session_max_age=$(qm_config_get settings session_max_age "3600")
+
     # --- Scheduled reboot ---
     sched_enabled=$(qm_config_get settings sched_reboot_enabled "0")
     sched_time=$(qm_config_get settings sched_reboot_time "04:00")
@@ -78,6 +81,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --arg effective_zone_abbr "$eff_abbr" \
         --argjson timezone_applied "$([ "$eff_applied" = "1" ] && echo true || echo false)" \
         --arg sms_tool_device "$sms_tool_device" \
+        --argjson session_max_age "$session_max_age" \
         --argjson sched_enabled "$sched_enabled" \
         --arg sched_time "$sched_time" \
         --argjson sched_days "$sched_days_json" \
@@ -97,7 +101,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
                 effective_offset: $effective_offset,
                 effective_zone_abbr: $effective_zone_abbr,
                 timezone_applied: $timezone_applied,
-                sms_tool_device: $sms_tool_device
+                sms_tool_device: $sms_tool_device,
+                session_max_age: $session_max_age
             },
             scheduled_reboot: {
                 enabled: ($sched_enabled == 1),
@@ -290,6 +295,47 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     # unknown_action handler below rather than silently no-op-succeeding, so
     # a caller still hitting this action gets an explicit error instead of a
     # false "success" for a save that does nothing.
+
+    # -------------------------------------------------------------------------
+    # action: save_security
+    # -------------------------------------------------------------------------
+    if [ "$ACTION" = "save_security" ]; then
+        qlog_info "Saving security settings"
+        qm_config_init
+
+        SESSION_AGE=$(printf '%s' "$POST_DATA" | jq -r '.session_max_age // empty')
+
+        if [ -z "$SESSION_AGE" ]; then
+            cgi_error "missing_session_max_age" "session_max_age field is required"
+            exit 0
+        fi
+
+        # Must be a non-negative integer
+        case "$SESSION_AGE" in
+            ''|*[!0-9]*)
+                cgi_error "invalid_session_max_age" "session_max_age must be a non-negative integer"
+                exit 0
+                ;;
+        esac
+
+        # 0 = never expire; otherwise enforce a 60-second minimum
+        if [ "$SESSION_AGE" != "0" ] && [ "$SESSION_AGE" -lt 60 ]; then
+            cgi_error "invalid_session_max_age" "session_max_age must be at least 60 seconds or 0 (never)"
+            exit 0
+        fi
+
+        # Cap at 400 days (browser cookie maximum) when not never-expire
+        if [ "$SESSION_AGE" != "0" ] && [ "$SESSION_AGE" -gt 34560000 ]; then
+            cgi_error "invalid_session_max_age" "session_max_age cannot exceed 34560000 (400 days)"
+            exit 0
+        fi
+
+        qm_config_set settings session_max_age "$SESSION_AGE"
+
+        qlog_info "Session max age set to ${SESSION_AGE}s"
+        jq -n --argjson age "$SESSION_AGE" '{"success":true,"session_max_age":$age}'
+        exit 0
+    fi
 
     # Unknown action
     cgi_error "unknown_action" "Unknown action: $ACTION"

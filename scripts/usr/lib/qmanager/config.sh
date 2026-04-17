@@ -47,7 +47,8 @@ qm_config_init() {
     "sms_tool_device": "",
     "sched_reboot_enabled": 0,
     "sched_reboot_time": "04:00",
-    "sched_reboot_days": "0,1,2,3,4,5,6"
+    "sched_reboot_days": "0,1,2,3,4,5,6",
+    "session_max_age": 3600
   },
   "update": {
     "include_prerelease": 1,
