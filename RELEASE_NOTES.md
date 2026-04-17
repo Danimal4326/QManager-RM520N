@@ -1,3 +1,23 @@
+# 🚀 QManager RM520N v0.1.5-beta.1.dc
+
+**Configurable session timeout, custom update repository** — Sessions can now be set to any duration (or never expire) from System Settings. Updates can be pulled from any GitHub fork, both in the UI and via the `QMANAGER_REPO` env var in the installer.
+
+> Upgrading from v0.1.4? Go to **System Settings -> Software Update** or re-run the installer via ADB/SSH. All existing settings and profiles are preserved.
+
+---
+
+## ✨ What's New
+
+### 🔒 Configurable Session Timeout
+
+A new **Security** card under System Settings lets you set how long a session stays active before requiring re-login. Choose any duration in minutes, hours, or days, or enable **Never expire** for persistent sessions (browser-side cookie uses the 400-day maximum; server enforces the setting on every request).
+
+### 🔄 Custom Update Repository
+
+The Software Update preferences card now includes an **Update Repository** field. Enter any `owner/repo` GitHub fork to pull updates from — useful for testing forks or staging builds. Leave empty to use the default (`dr-dolomite/QManager-RM520N`). The installer also accepts a `QMANAGER_REPO` environment variable for the same purpose.
+
+---
+
 # 🚀 QManager RM520N BETA v0.1.4
 
 **SMS alerts, new Rust-based AT transport, onboarding accuracy, and install reliability** — QManager can now SMS you when your connection goes down, so you get notified even while your data link is offline. `atcli_smd11` is a modern Rust reimplementation with cross-modem support, the onboarding band picker shows only the bands your modem actually supports, cell distance readings no longer lie when there's no signal, and the installer survives a read-only rootfs when enabling SSH.
