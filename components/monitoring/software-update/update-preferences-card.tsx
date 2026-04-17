@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { DownloadIcon } from "lucide-react";
+import { DownloadIcon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 import type { UpdateInfo } from "@/hooks/use-software-update";
@@ -47,6 +47,7 @@ interface UpdatePreferencesCardProps {
   downloadUpdate: (version: string) => Promise<void>;
   togglePrerelease: (enabled: boolean) => Promise<void>;
   saveAutoUpdate: (enabled: boolean, time: string) => Promise<void>;
+  saveCustomRepo: (repo: string) => Promise<void>;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -63,6 +64,9 @@ const itemVariants: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: "easeOut" } },
 };
 
+const DEFAULT_REPO = "dr-dolomite/QManager-RM520N";
+const REPO_DEBOUNCE = 800;
+
 export function UpdatePreferencesCard({
   updateInfo,
   isLoading,
@@ -71,13 +75,17 @@ export function UpdatePreferencesCard({
   downloadUpdate,
   togglePrerelease,
   saveAutoUpdate,
+  saveCustomRepo,
 }: UpdatePreferencesCardProps) {
   const [showInstallDialog, setShowInstallDialog] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<string>("");
   const [prereleaseToggling, setPrereleaseToggling] = useState(false);
   const [autoUpdateToggling, setAutoUpdateToggling] = useState(false);
   const [autoUpdateTime, setAutoUpdateTime] = useState("03:00");
+  const [customRepo, setCustomRepo] = useState("");
+  const [repoSaving, setRepoSaving] = useState(false);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const repoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync local time from server data
   useEffect(() => {
@@ -85,6 +93,13 @@ export function UpdatePreferencesCard({
       setAutoUpdateTime(updateInfo.auto_update_time);
     }
   }, [updateInfo?.auto_update_time]);
+
+  // Sync custom repo from server data
+  useEffect(() => {
+    if (updateInfo !== null) {
+      setCustomRepo(updateInfo.custom_repo ?? "");
+    }
+  }, [updateInfo?.custom_repo]);
 
   const handleTogglePrerelease = useCallback(
     async (checked: boolean) => {
@@ -151,10 +166,35 @@ export function UpdatePreferencesCard({
     [saveAutoUpdate, updateInfo?.auto_update_enabled],
   );
 
-  // Clean up debounce timer
+  const handleCustomRepoChange = useCallback(
+    (value: string) => {
+      setCustomRepo(value);
+
+      if (repoTimerRef.current) clearTimeout(repoTimerRef.current);
+      repoTimerRef.current = setTimeout(async () => {
+        setRepoSaving(true);
+        try {
+          await saveCustomRepo(value.trim());
+          toast.success(
+            value.trim()
+              ? `Repository set to ${value.trim()}`
+              : `Repository reset to default`,
+          );
+        } catch {
+          toast.error("Failed to save repository");
+        } finally {
+          setRepoSaving(false);
+        }
+      }, REPO_DEBOUNCE);
+    },
+    [saveCustomRepo],
+  );
+
+  // Clean up debounce timers
   useEffect(() => {
     return () => {
       if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+      if (repoTimerRef.current) clearTimeout(repoTimerRef.current);
     };
   }, []);
 
@@ -279,6 +319,40 @@ export function UpdatePreferencesCard({
                 </motion.div>
               </>
             )}
+
+            {/* ── Custom Repository ───────────────────────────────── */}
+            <Separator />
+            <motion.div variants={itemVariants} className="flex flex-col gap-2">
+              <p className="font-semibold text-sm">Update Repository</p>
+              <div className="flex flex-col gap-2 rounded-lg border bg-muted/50 p-3">
+                <span className="text-xs text-muted-foreground">
+                  Use a fork or alternative GitHub repository for updates. Leave
+                  empty to use the default ({DEFAULT_REPO}).
+                </span>
+                <div className="relative">
+                  <Input
+                    id="custom-repo"
+                    type="text"
+                    placeholder={DEFAULT_REPO}
+                    value={customRepo}
+                    onChange={(e) => handleCustomRepoChange(e.target.value)}
+                    disabled={isUpdating || repoSaving}
+                    aria-label="Custom update repository"
+                    className="pr-10 font-mono text-sm"
+                  />
+                  {repoSaving && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      <Loader2Icon className="size-4 animate-spin" />
+                    </span>
+                  )}
+                </div>
+                {customRepo && customRepo !== DEFAULT_REPO && (
+                  <p className="text-xs text-warning">
+                    Using a custom repository. Only install packages you trust.
+                  </p>
+                )}
+              </div>
+            </motion.div>
 
             {/* ── Version Management ──────────────────────────────── */}
             <Separator />
