@@ -45,6 +45,7 @@ export interface UpdateInfo {
   include_prerelease: boolean;
   auto_update_enabled: boolean;
   auto_update_time: string;
+  custom_repo: string;
   check_error: string | null;
 }
 
@@ -72,6 +73,7 @@ export interface UseSoftwareUpdateReturn {
   installVersion: (version: string) => Promise<void>;
   togglePrerelease: (enabled: boolean) => Promise<void>;
   saveAutoUpdate: (enabled: boolean, time: string) => Promise<void>;
+  saveCustomRepo: (repo: string) => Promise<void>;
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
@@ -478,6 +480,28 @@ export function useSoftwareUpdate(): UseSoftwareUpdateReturn {
     }
   }, [fetchUpdateInfo]);
 
+  const saveCustomRepo = useCallback(async (repo: string) => {
+    try {
+      const resp = await authFetch(CGI_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save_custom_repo", repo }),
+      });
+
+      const json = await resp.json();
+      if (!json.success) {
+        setError(json.detail || json.error || "Failed to save repository");
+        return;
+      }
+
+      // Re-fetch update info from the new repo
+      await fetchUpdateInfo(true);
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setError(err instanceof Error ? err.message : "Failed to save repository");
+    }
+  }, [fetchUpdateInfo]);
+
   return {
     updateInfo,
     updateStatus,
@@ -495,5 +519,6 @@ export function useSoftwareUpdate(): UseSoftwareUpdateReturn {
     installVersion,
     togglePrerelease,
     saveAutoUpdate,
+    saveCustomRepo,
   };
 }

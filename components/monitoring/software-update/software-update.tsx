@@ -354,6 +354,7 @@ const SoftwareUpdateComponent = () => {
           installVersion={hookData.installVersion}
           togglePrerelease={hookData.togglePrerelease}
           saveAutoUpdate={hookData.saveAutoUpdate}
+          saveCustomRepo={hookData.saveCustomRepo}
         />
       </div>
     </PageWrapper>
