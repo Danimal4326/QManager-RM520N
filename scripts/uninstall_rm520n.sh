@@ -91,6 +91,15 @@ info "Removed daemons and binaries from $BIN_DIR"
 rm -rf "$LIB_DIR"
 info "Removed $LIB_DIR"
 
+# --- Remove udev rule (helper script lives under $LIB_DIR, already removed above) ---
+if [ -f /etc/udev/rules.d/99-qmanager-smd11.rules ]; then
+    rm -f /etc/udev/rules.d/99-qmanager-smd11.rules
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm control --reload-rules 2>/dev/null || true
+    fi
+    info "Removed udev rule for /dev/smd11"
+fi
+
 # --- Remove CGI endpoints ---
 rm -rf "$CGI_DIR"
 info "Removed CGI endpoints"
