@@ -363,9 +363,6 @@ const LTELockingComponent = ({
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {isLocking ? (
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                  ) : null}
                   <Switch
                     id="lte-simple-mode"
                     aria-label="Toggle LTE Simple Mode"

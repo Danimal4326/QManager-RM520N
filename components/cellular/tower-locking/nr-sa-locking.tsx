@@ -333,9 +333,6 @@ const NRSALockingComponent = ({
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {isLocking ? (
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                  ) : null}
                   <Switch
                     id="nr-sa-simple-mode"
                     aria-label="Toggle NR Simple Mode"
