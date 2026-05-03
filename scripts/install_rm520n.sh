@@ -1134,9 +1134,9 @@ main() {
 
     if [ "$DO_BACKEND" = "1" ]; then
         install_backend
-        install_udev_rules
         fix_line_endings
         fix_permissions
+        install_udev_rules
         [ "$DO_ENABLE" = "1" ] && enable_services
     fi
 
