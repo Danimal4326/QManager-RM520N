@@ -704,11 +704,15 @@ install_backend() {
             old_hl=$(grep -o -- '--hl-set [0-9]*' /etc/firewall.user.ttl 2>/dev/null | awk '{print $2}' | head -n1)
             [ -z "$old_ttl" ] && old_ttl=0
             [ -z "$old_hl" ] && old_hl=0
-            ttl_state_write_persisted "$old_ttl" "$old_hl" && \
-                info "Migrated TTL=$old_ttl HL=$old_hl to $TTL_STATE_FILE"
+            if [ "$old_ttl" -eq 0 ] && [ "$old_hl" -eq 0 ]; then
+                info "Legacy /etc/firewall.user.ttl had no parseable TTL/HL — leaving in place for inspection"
+            else
+                ttl_state_write_persisted "$old_ttl" "$old_hl" && \
+                    info "Migrated TTL=$old_ttl HL=$old_hl to $TTL_STATE_FILE"
+                rm -f /etc/firewall.user.ttl || true
+                info "Removed legacy /etc/firewall.user.ttl"
+            fi
         ) || true
-        rm -f /etc/firewall.user.ttl || true
-        info "Removed legacy /etc/firewall.user.ttl"
     fi
 
     mkdir -p "$SESSION_DIR"

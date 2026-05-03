@@ -79,8 +79,7 @@ ttl_state_read_live() {
     local ttl=0 hl=0 val
 
     val=$(run_iptables -w 5 -t mangle -vnL POSTROUTING -n 2>/dev/null \
-        | grep -i 'TTL set to' \
-        | grep -o 'TTL set to [0-9]*' \
+        | grep -io 'TTL set to [0-9]*' \
         | head -n1 \
         | awk '{print $4}')
     if _ttl_is_int "$val"; then
@@ -88,8 +87,7 @@ ttl_state_read_live() {
     fi
 
     val=$(run_ip6tables -w 5 -t mangle -vnL POSTROUTING -n 2>/dev/null \
-        | grep -i 'HL set to' \
-        | grep -o 'HL set to [0-9]*' \
+        | grep -io 'HL set to [0-9]*' \
         | head -n1 \
         | awk '{print $4}')
     if _ttl_is_int "$val"; then
@@ -182,6 +180,6 @@ ttl_state_apply() {
 # ttl_state_clear — remove all TTL/HL rules and delete the persisted file
 # =============================================================================
 ttl_state_clear() {
-    ttl_state_apply 0 0
+    ttl_state_apply 0 0 || return 1
     rm -f "$TTL_STATE_FILE"
 }
