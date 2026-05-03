@@ -6,21 +6,23 @@ This document covers the OpenWRT shell script backend: CGI endpoints, daemons, i
 
 ## Overview
 
-The backend runs on OpenWRT as POSIX shell scripts executed by BusyBox `/bin/sh`. It consists of:
+The backend runs on the RM520N-GL's internal Linux (SDXLEMUR, ARMv7l) as Bash/POSIX shell scripts executed by lighttpd CGI and systemd. It consists of:
 
-- **CGI endpoints** — HTTP API handlers executed by uhttpd
-- **Daemons** — Long-running background processes
-- **Init.d services** — Process lifecycle management
+- **CGI endpoints** — HTTP API handlers executed by lighttpd
+- **Daemons** — Long-running background processes managed by systemd
+- **Systemd service units** — Process lifecycle management
 - **Shared libraries** — Reusable shell functions
 
 All scripts live in `scripts/` and mirror the device filesystem:
 
 ```
 scripts/
-├── etc/init.d/                    → /etc/init.d/
+├── etc/systemd/system/            → /lib/systemd/system/
+├── etc/sudoers.d/                 → /etc/sudoers.d/
+├── etc/udev/rules.d/              → /etc/udev/rules.d/
 ├── usr/bin/                       → /usr/bin/
 ├── usr/lib/qmanager/              → /usr/lib/qmanager/
-└── www/cgi-bin/quecmanager/       → /www/cgi-bin/quecmanager/
+└── www/cgi-bin/quecmanager/       → /usrdata/qmanager/www/cgi-bin/quecmanager/
 ```
 
 ---
@@ -61,23 +63,14 @@ Never access the modem serial port directly.
 
 ### RM520N-GL AT Commands
 
-On the RM520N-GL variant, AT commands go through a socat PTY bridge instead of `sms_tool`:
+On the RM520N-GL, AT commands go through `atcli_smd11` on `/dev/smd11` directly — no socat PTY bridge needed:
 
 ```sh
-# RM551E (OpenWRT) — current
+# Both platforms — same interface via qcmd wrapper
 result=$(qcmd 'AT+QENG="servingcell"')
-
-# RM520N-GL — via microcom with flock serialization
-result=$(flock /var/lock/atcmd.lock microcom -t 2000 /dev/ttyOUT <<< "AT+QENG=\"servingcell\"")
 ```
 
-The plan is to provide a platform-specific `qcmd` wrapper so CGI scripts can use the same interface on both platforms. See `docs/rm520n-gl-architecture.md` for the full AT transport architecture.
-
-Key differences:
-- Two AT channels: `/dev/ttyOUT` (smd11, primary) and `/dev/ttyOUT2` (smd7, secondary)
-- Must use `flock` for serialization — no implicit locking
-- `microcom` provides millisecond-precision timeouts
-- `/bin/bash` is available (not just BusyBox sh), but scripts should remain POSIX-compatible for shared code
+`qcmd` uses `flock` with a read-only FD (`9<`) for serialization (handles `fs.protected_regular=1`). `atcli_smd11` is a Rust reimplementation (static ARMv7, ~647KB) that handles long commands natively — no timeout workarounds needed. See `docs/rm520n-gl-architecture.md` for full AT transport details.
 
 ### No `setsid`
 
@@ -211,56 +204,19 @@ Downtime email alert logic (sourced by poller):
 - Alert triggering on recovery (not during downtime)
 - Log writing to `/tmp/qmanager_email_log.json`
 
-### ethtool_helper.sh
-
-Ethernet negotiation helpers:
-- Build hex advertise masks from supported link modes
-- Handle 2.5G auto-negotiation (bit 47, outside 32-bit range)
-
 ### cgi_at.sh
 
 AT command execution helpers for CGI scripts that need to send AT commands.
 
-### dpi_helper.sh
+### semver.sh
 
-Video Optimizer helper functions. Guard-loaded (`_DPI_HELPER_LOADED`).
-
-**Functions:**
+Shared semantic version comparison library. Guard-loaded (`_SEMVER_SH_LOADED`).
 
 | Function | Description |
 |----------|-------------|
-| `dpi_check_binary()` | Verify nfqws binary exists |
-| `dpi_check_kmod()` | Check NFQUEUE support (built-in via `/proc/config.gz` or loadable module) |
-| `dpi_check_libs()` | Verify shared library dependencies |
-| `dpi_insert_rules(iface)` | Add nftables NFQUEUE rules (queue 200) |
-| `dpi_remove_rules()` | Remove nftables NFQUEUE rules by comment (`qmanager_dpi`) |
-| `dpi_get_status()` | Return running/stopped |
-| `dpi_get_uptime()` | Calculate from PID timestamp |
-| `dpi_get_packet_count()` | Read nftables counter |
-| `dpi_get_domain_count()` | Count hostlist entries |
+| `semver_compare <v1> <v2>` | Returns 0 if v1==v2, 1 if v1>v2, 2 if v1<v2 |
 
-### masq_helper.sh
-
-Traffic Masquerade helper functions. Guard-loaded (`_MASQ_HELPER_LOADED`). Sources `dpi_helper.sh` for shared constants and prerequisite checks.
-
-**Constants:**
-
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `MASQ_PID` | `/var/run/nfqws_masq.pid` | PID file for uptime tracking |
-| `MASQ_QUEUE_NUM` | `201` | NFQUEUE number (separate from Video Optimizer's queue 200) |
-| `MASQ_NFT_COMMENT` | `qmanager_masq` | nftables rule comment for identification |
-
-**Functions:**
-
-| Function | Description |
-|----------|-------------|
-| `masq_insert_rules(iface)` | Add nftables NFQUEUE rules for all HTTPS traffic (TCP + QUIC port 443, queue 201) |
-| `masq_remove_rules()` | Remove nftables rules by comment (`qmanager_masq`) |
-| `masq_get_status()` | Return `running` or `stopped` based on PID file |
-| `masq_get_uptime()` | Calculate human-readable uptime from PID file timestamp |
-| `masq_get_packet_count()` | Read nftables counter for masquerade rules |
-| `get_nfqws_pid_by_queue(qnum)` | Find nfqws PID by scanning `/proc/*/cmdline` for `qnum=<N>` |
+Sourced by the `system/update.sh` CGI and `qmanager_auto_update`. Extracted from the update CGI to avoid duplicate inline implementations.
 
 ---
 
@@ -400,52 +356,26 @@ Boot-time one-shot: checks if the device rebooted during a scheduled low power w
 5. If inside window: set state flags immediately, sleep 30s (modem init), send `AT+CFUN=0`
 6. If outside window: clean up any stale flags from before reboot
 
-### qmanager_dpi_install (nfqws Installer)
+### qmanager_update (OTA Update Worker)
 
-**Type:** One-shot background script (spawned by CGI)
-**Location:** `scripts/usr/bin/qmanager_dpi_install`
-**State file:** `/tmp/qmanager_dpi_install.json`
-**PID file:** `/tmp/qmanager_dpi_install.pid`
+**Type:** One-shot background script (invoked by CGI via `sudo -n`)
+**Location:** `scripts/usr/bin/qmanager_update`
+**Status file:** `/tmp/qmanager_update_status.json` (atomic write via `.tmp` + `mv`)
+**Log file:** `/tmp/qmanager_update.log` (root-owned; worker does `rm -f` before create to avoid `fs.protected_regular=1`)
 
-Downloads and installs the nfqws binary from the [zapret](https://github.com/bol-van/zapret) GitHub releases. The binary is **not bundled** with QManager and is **not installed via opkg** — it is fetched on demand from upstream to avoid dependency issues on custom firmware (e.g., iamromulan's RM551E-GL build).
+Handles the full OTA update lifecycle: download, verify, stage, install, rollback.
 
-**Flow:**
+**Install modes:** `install` (direct URL), `install_staged` (pre-downloaded tarball), `rollback`
 
-1. Detect device architecture via `uname -m` (aarch64, armv7l, x86_64, mips, mipsel)
-2. Query GitHub API (`/repos/bol-van/zapret/releases/latest`) for the latest release
-3. Find the `openwrt-embedded.tar.gz` asset (smaller tarball with only binaries); falls back to the full release tarball
-4. Download the tarball to `/tmp/qmanager_dpi_download/`
-5. Extract only the architecture-specific `nfqws` binary (`binaries/<arch>/nfqws`)
-6. Install to `/usr/bin/nfqws` with `chmod 755`
-7. Verify the binary runs (`nfqws --help`)
-8. Write success/error result to `/tmp/qmanager_dpi_install.json`
+**Helpers:**
+- `validate_url <url> [strict]` — SSRF whitelist check; strict mode used for download/rollback URLs
+- `verify_archive <path>` — `tar tzf` + grep for `install_rm520n.sh`
+- `run_install_with_progress()` — tails `=== Step N/M: <label> ===` lines from `/tmp/qmanager_install.log` and mirrors them into `write_status "installing" "<label>"`
+- `post_install_check <expected>` — reads `/etc/qmanager/VERSION`; dies on mismatch or stale `VERSION.pending`
 
-**Singleton:** The CGI checks the PID file before spawning; if an install is already running, it returns `"status": "running"` without starting a second instance.
+**Singleton:** CGI checks PID file before spawning. The CGI invocation uses `sudo -n /usr/bin/qmanager_update` — the spawn-line redirects to `/dev/null 2>&1` so the worker creates its own log as root.
 
-**Cleanup:** Removes the download directory and PID file on exit (via `trap cleanup EXIT INT TERM`).
-
-**Result file format:**
-
-```json
-{"success": true, "status": "complete", "message": "nfqws installed successfully", "detail": "v69"}
-```
-
-Status values: `running`, `complete`, `error`
-
-### qmanager_dpi (DPI Evasion — Video Optimizer + Traffic Masquerade)
-
-**Type:** Procd service (multi-instance daemon pattern)
-**Binary:** `/usr/bin/nfqws` (from zapret project)
-**Config:** UCI `quecmanager.video_optimizer` + `quecmanager.traffic_masquerade`
-
-Manages up to two nfqws instances for DPI evasion. Each instance runs on its own NFQUEUE number and is independently UCI-gated:
-
-- **Instance 1 (`nfqws`)**: Video Optimizer — SNI split on queue 200, filtered by hostname list. Enabled via `quecmanager.video_optimizer.enabled`.
-- **Instance 2 (`nfqws_masq`)**: Traffic Masquerade — fake TLS ClientHello with spoofed SNI on queue 201, applied to all HTTPS traffic. Enabled via `quecmanager.traffic_masquerade.enabled`.
-
-**Start:** Checks binary + kernel module (shared prerequisites) → for each enabled instance: inserts nftables rules → launches nfqws via procd → writes PID files by scanning `/proc/*/cmdline` for queue numbers
-**Stop:** Removes all nftables rules (both `qmanager_dpi` and `qmanager_masq` comments) → kills both instances → cleans up PID files
-**Respawn:** 3600s window, 5s delay, max 5 respawns (per instance)
+**Status values:** `idle` → `downloading` → `verifying` → `ready` → `installing` → `rebooting` / `error`
 
 ### qcmd
 
@@ -457,26 +387,24 @@ result=$(qcmd 'AT+QENG="servingcell"')
 
 ---
 
-## Init.d Services
+## Systemd Services
 
-| Service | Type | START | Daemon | Description |
-|---------|------|-------|--------|-------------|
-| `qmanager` | procd | 99 | `qmanager_poller` + `qmanager_ping` | Main poller and ping daemon |
-| `qmanager_eth_link` | non-procd | 99 | — | Apply ethernet link speed on boot |
-| `qmanager_ttl` | non-procd | 99 | — | Apply TTL/HL rules on boot (sources `/etc/firewall.user.ttl`) |
-| `qmanager_mtu` | non-procd | 99 | `qmanager_mtu_apply` | MTU application daemon |
-| `qmanager_imei_check` | non-procd | 99 | `qmanager_imei_check` | Boot-time IMEI check (one-shot, double-fork) |
-| `qmanager_wan_guard` | non-procd | 99 | `qmanager_wan_guard` | WAN profile validation (one-shot) |
-| `qmanager_tower_failover` | non-procd | 99 | `qmanager_tower_failover` | Tower failover watchdog |
-| `qmanager_low_power_check` | non-procd | 99 | `qmanager_low_power_check` | Boot-time low power window check (one-shot, double-fork) |
-| `qmanager_dpi` | procd | 99 | `nfqws` (x2) | DPI evasion: Video Optimizer (queue 200) + Traffic Masquerade (queue 201), each UCI-gated |
+All services are installed as `.service` units in `/lib/systemd/system/`. Boot persistence uses direct symlinks into `/lib/systemd/system/multi-user.target.wants/` — `systemctl enable` does not work on this platform (use `svc_enable`/`svc_disable` from `platform.sh`).
 
-Non-procd services use the double-fork pattern for daemonization:
-```sh
-start() {
-    ( "$DAEMON" </dev/null >/dev/null 2>&1 & )
-}
-```
+| Service | Type | Daemon | Description |
+|---------|------|--------|-------------|
+| `qmanager-firewall` | oneshot | — | Port firewall — restricts 80/443 to trusted interfaces before lighttpd starts |
+| `qmanager-setup` | oneshot | `qmanager_setup` | Boot setup — directories, permissions, pre-create `/tmp` files |
+| `qmanager-poller` | simple | `qmanager_poller` | Main poller daemon — tiered AT polling, JSON cache, event detection |
+| `qmanager-ping` | simple | `qmanager_ping` | Latency monitor — 5s ping cycle, NDJSON history |
+| `qmanager-console` | simple | `ttyd` | Web console — ttyd on localhost:8080, reverse-proxied by lighttpd |
+| `qmanager-watchcat` | simple | `qmanager_watchcat` | Connection watchdog — 4-tier auto-recovery state machine |
+| `qmanager-ttl` | oneshot | — | Apply TTL/HL iptables rules at boot |
+| `qmanager-mtu` | simple | `qmanager_mtu_apply` | MTU — waits for rmnet interface, then applies MTU |
+| `qmanager-imei-check` | oneshot | `qmanager_imei_check` | Boot-time IMEI rejection check |
+| `qmanager-tower-failover` | simple | `qmanager_tower_failover` | Tower failover watchdog (UCI-gated: only re-enabled on upgrade if symlink existed pre-upgrade) |
+
+**UCI-gated services** (`UCI_GATED_SERVICES="qmanager-watchcat qmanager-tower-failover"`): the installer only re-enables these on upgrade if their `multi-user.target.wants/<svc>.service` symlink existed before the upgrade began.
 
 ---
 
@@ -634,6 +562,7 @@ All auth endpoints set `_SKIP_AUTH=1`.
 | `settings.sh` | GET/POST | System preferences, scheduled reboot, low power mode |
 | `reboot.sh` | POST | Trigger device reboot (uses `cgi_reboot_response`) |
 | `logs.sh` | GET | System log output |
+| `update.sh` | GET/POST | OTA update management — check, download, install, rollback. Invokes `qmanager_update` worker via `sudo -n`. GET response includes `previous_install_failed` and `pending_version` fields when `VERSION.pending` exists. Sources `/usr/lib/qmanager/semver.sh`. |
 
 #### VPN (`vpn/`)
 
@@ -753,49 +682,16 @@ cgi_reboot_response  # flushes HTTP, then reboots async
 
 ---
 
-## RM520N-GL Backend Differences
+## RM520N-GL Backend Notes
 
-The RM520N-GL variant requires significant backend adaptations:
+The RM520N-GL is the sole target of this branch. Key platform constraints relevant to backend development:
 
-### Init System: systemd vs procd
-
-| procd (RM551E) | systemd (RM520N-GL) |
-|----------------|---------------------|
-| `/etc/init.d/qmanager_poller` | `qmanager-poller.service` |
-| `start_service()` / `stop_service()` | `ExecStart=` / `ExecStop=` |
-| `procd_set_param command` | Unit file `ExecStart=` directive |
-| `procd_set_param respawn` | `Restart=on-failure`, `RestartSec=` |
-| `enable` / `disable` (symlink) | `systemctl enable` / `disable` |
-| `service qmanager_poller start` | `systemctl start qmanager-poller` |
-
-### Config System: UCI vs File-based
-
-| UCI (RM551E) | File-based (RM520N-GL) |
-|-------------|------------------------|
-| `uci get quecmanager.poller.enabled` | Read from `/usrdata/qmanager/config.json` |
-| `uci set quecmanager.poller.enabled=1` | Write to `/usrdata/qmanager/config.json` |
-| `uci commit quecmanager` | Direct file write (atomic via tmp+mv) |
-
-### Filesystem Layout
-
-```
-/usrdata/                           # Persistent writable partition
-├── qmanager/                       # Config and state (replaces /etc/qmanager/)
-├── www/                            # Web root (replaces /www/)
-│   ├── cgi-bin/quecmanager/        # CGI endpoints
-│   └── (static frontend)
-├── usr/
-│   ├── bin/                        # Daemons and utilities
-│   └── lib/qmanager/              # Shared libraries
-└── opt/                            # Entware (bind-mounted to /opt)
-```
-
-### Firewall: iptables vs nftables
-
-| nftables/fw4 (RM551E) | iptables (RM520N-GL) |
-|-----------------------|----------------------|
-| `nft add rule ...` | `iptables -A ...` |
-| `fw4 zone` | Direct `iptables` chain management |
-| `-o wwan0` | `-o rmnet+` (wildcard for cellular interfaces) |
+- **systemd, not procd** — services are `.service` units; `systemctl enable` does not work, use `svc_enable`/`svc_disable` from `platform.sh` (direct symlinks into `multi-user.target.wants/`)
+- **File-based config, not UCI** — no `uci` calls; config lives in `/etc/qmanager/` as JSON files; atomic writes use `.tmp` + `mv`
+- **`fs.protected_regular=1`** — root cannot truncate files created by `www-data` in `/tmp`; always `rm -f` before creating fresh log/state files; pre-create shared `/tmp` files as `www-data` in `qmanager_setup`
+- **Filesystem-driven service handling** — `stop_services()` and `enable_services()` in the installer scan `/lib/systemd/system/qmanager-*.service` and `/usr/bin/qmanager_*` at runtime rather than using a hardcoded list; `cleanup_legacy_scripts()` removes orphaned files not present in the current source tree
+- **iptables, not nftables** — all firewall rules use `iptables`/`ip6tables` with `-o rmnet+` wildcard for cellular interfaces
+- **`/bin/bash` available** — scripts may use bash features; POSIX-only is not required on this platform
+- **CGI sudo** — `www-data` must use `sudo -n` with full absolute paths for all privileged operations; see `platform.sh` wrappers (`svc_start`, `run_iptables`, `run_reboot`, etc.)
 
 > **See also:** [RM520N-GL Architecture Report](rm520n-gl-architecture.md) for the complete platform analysis.

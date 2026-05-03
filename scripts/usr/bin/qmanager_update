@@ -163,6 +163,10 @@ die() {
 
 # --- Lock & setup ------------------------------------------------------------
 
+# fs.protected_regular=1 prevents root from truncating files owned by other
+# users in sticky /tmp dirs. Prior failed CGI attempts may have left these
+# files owned by www-data, so rm-then-create instead of plain truncate.
+rm -f "$LOG_FILE" "$PID_FILE" 2>/dev/null || true
 echo $$ > "$PID_FILE"
 trap cleanup EXIT INT TERM
 : > "$LOG_FILE"

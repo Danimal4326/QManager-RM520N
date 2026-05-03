@@ -386,7 +386,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         checksum_url="https://github.com/${GITHUB_REPO}/releases/download/${version}/sha256sum.txt"
 
         jq -n '{"success":true,"status":"starting"}'
-        ( sudo -n "$UPDATER" download "$download_url" "$checksum_url" "$version" </dev/null >>/tmp/qmanager_update.log 2>&1 & )
+        ( sudo -n "$UPDATER" download "$download_url" "$checksum_url" "$version" </dev/null >/dev/null 2>&1 & )
         exit 0
     fi
 
@@ -400,7 +400,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         fi
 
         jq -n '{"success":true,"status":"starting"}'
-        ( sudo -n "$UPDATER" install_staged </dev/null >>/tmp/qmanager_update.log 2>&1 & )
+        ( sudo -n "$UPDATER" install_staged </dev/null >/dev/null 2>&1 & )
         exit 0
     fi
 
@@ -418,7 +418,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
         # Respond immediately, spawn background updater (double-fork)
         jq -n '{"success":true,"status":"starting"}'
-        ( sudo -n "$UPDATER" install "$download_url" "$version" "$download_size" </dev/null >>/tmp/qmanager_update.log 2>&1 & )
+        ( sudo -n "$UPDATER" install "$download_url" "$version" "$download_size" </dev/null >/dev/null 2>&1 & )
         exit 0
     fi
 
@@ -434,7 +434,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         rollback_version=$(cat "$UPDATES_DIR/previous_version" 2>/dev/null)
         rollback_url="https://github.com/${GITHUB_REPO}/releases/download/${rollback_version}/qmanager.tar.gz"
         jq -n --arg v "$rollback_version" '{"success":true,"status":"starting","version":$v}'
-        ( sudo -n "$UPDATER" rollback "$rollback_url" "$rollback_version" </dev/null >>/tmp/qmanager_update.log 2>&1 & )
+        ( sudo -n "$UPDATER" rollback "$rollback_url" "$rollback_version" </dev/null >/dev/null 2>&1 & )
         exit 0
     fi
 

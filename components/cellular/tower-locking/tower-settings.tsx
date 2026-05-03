@@ -51,7 +51,8 @@ interface TowerLockingSettingsProps {
   modemData: ModemStatus | null;
   isLoading: boolean;
   onPersistChange: (persist: boolean) => void;
-  onFailoverChange: (enabled: boolean) => void;
+  onFailoverChange: (enabled: boolean) => Promise<boolean>;
+  isFailoverSaving: boolean;
   onThresholdChange: (threshold: number) => Promise<boolean>;
 }
 
@@ -62,6 +63,7 @@ const TowerLockingSettingsComponent = ({
   isLoading,
   onPersistChange,
   onFailoverChange,
+  isFailoverSaving,
   onThresholdChange,
 }: TowerLockingSettingsProps) => {
   // Whether any tower lock is active (from config — matches what failover daemon checks)
@@ -485,11 +487,17 @@ const TowerLockingSettingsComponent = ({
               <Switch
                 id="tower-failover"
                 checked={config?.failover?.enabled ?? false}
-                disabled={!config || !hasActiveLock}
-                onCheckedChange={(checked) => {
-                  onFailoverChange(checked);
-                  if (!checked) {
-                    toast.warning("Failover disabled");
+                disabled={!config || !hasActiveLock || isFailoverSaving}
+                onCheckedChange={async (checked) => {
+                  const ok = await onFailoverChange(checked);
+                  if (ok) {
+                    if (checked) {
+                      toast.success("Signal Failover enabled");
+                    } else {
+                      toast.warning("Signal Failover disabled");
+                    }
+                  } else {
+                    toast.error(checked ? "Failed to enable Signal Failover" : "Failed to disable Signal Failover");
                   }
                 }}
               />

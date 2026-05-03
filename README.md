@@ -5,7 +5,7 @@
   <h3>A modern, custom GUI for Quectel modem management</h3>
   <p>Visualize, configure, and optimize your cellular modem's performance with an intuitive web interface</p>
 
-  ![Version](https://img.shields.io/badge/version-v0.1.4-blue?style=flat-square)
+  ![Version](https://img.shields.io/badge/version-v0.1.5-blue?style=flat-square)
   ![License](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-green?style=flat-square)
   ![Platform](https://img.shields.io/badge/platform-RM520N--GL-orange?style=flat-square)
   ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square)
@@ -94,7 +94,9 @@ The interactive installer fetches the latest release, verifies the SHA-256 check
 
 ### Upgrading
 
-From v0.1.1+, go to **System Settings -> Software Update** and use the built-in update flow -- download, verify, and install without SSH. Rollback to the previous version is available if needed.
+From v0.1.5+, go to **System Settings → Software Update** and use the built-in OTA update flow — download, verify, and install without SSH. Rollback to the previous version is available if needed.
+
+> **Note:** The v0.1.4 → v0.1.5 hop requires ADB or SSH because v0.1.4's CGI lacks the sudo rule needed to invoke the update worker as root. From v0.1.5 onward, all future updates work via the UI.
 
 ### Uninstalling
 
@@ -102,9 +104,17 @@ From v0.1.1+, go to **System Settings -> Software Update** and use the built-in 
 # SSH into the modem
 bash /tmp/qmanager_install/uninstall_rm520n.sh
 
-# To also remove config/profiles/passwords:
+# Skip the confirmation prompt (non-interactive / scripted use):
+bash /tmp/qmanager_install/uninstall_rm520n.sh --force
+
+# Skip automatic reboot after uninstall:
+bash /tmp/qmanager_install/uninstall_rm520n.sh --no-reboot
+
+# Also remove config/profiles/passwords and Tailscale:
 bash /tmp/qmanager_install/uninstall_rm520n.sh --purge
 ```
+
+Entware (`/opt/`) is always preserved even with `--purge` — remove it manually if needed.
 
 ---
 
