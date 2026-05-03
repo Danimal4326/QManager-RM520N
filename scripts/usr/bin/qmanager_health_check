@@ -217,8 +217,10 @@ t_bin_msmtp() {
         echo "$v" >> "$OUTPUT_FILE"
         echo "pass|$v"
     elif [ ! -f /etc/qmanager/email_alerts.json ]; then
+        echo "msmtp not installed; email_alerts.json not present" >> "$OUTPUT_FILE"
         echo "skip|email alerts not configured"
     else
+        echo "msmtp not installed but /etc/qmanager/email_alerts.json exists" >> "$OUTPUT_FILE"
         echo "fail|missing but email alerts configured"
     fi
 }
@@ -242,7 +244,7 @@ t_perm_www_dialout() {
         id www-data >> "$OUTPUT_FILE"
         echo "pass|in dialout group"
     else
-        id www-data 2>&1 >> "$OUTPUT_FILE" || echo "www-data missing" >> "$OUTPUT_FILE"
+        id www-data >> "$OUTPUT_FILE" 2>&1 || echo "www-data missing" >> "$OUTPUT_FILE"
         echo "fail|not in dialout group"
     fi
 }
@@ -250,9 +252,9 @@ t_perm_qmanager_dir() {
     local mode; mode=$(stat -c '%a' /usrdata/qmanager 2>/dev/null)
     echo "/usrdata/qmanager mode=$mode" >> "$OUTPUT_FILE"
     case "$mode" in
-        7??|755|750) echo "pass|mode $mode" ;;
-        "") echo "fail|directory missing" ;;
-        *)  echo "warn|mode $mode (expected 755)";;
+        7??) echo "pass|mode $mode" ;;
+        "")  echo "fail|directory missing" ;;
+        *)   echo "warn|mode $mode (expected 755)" ;;
     esac
 }
 t_perm_rootfs_state() {
@@ -300,8 +302,12 @@ t_at_cgmm() {
 }
 t_at_cgsn() {
     local out; out=$(_qcmd "AT+CGSN")
-    echo "$out" >> "$OUTPUT_FILE"
     local imei; imei=$(echo "$out" | grep -E '^[0-9]{15}$' | head -1)
+    # Mask IMEI in raw output before writing to bundle. Both UI detail and
+    # tarball file see only the masked form.
+    local masked_out
+    masked_out=$(echo "$out" | sed -E 's/\b([0-9]{9})[0-9]{6}\b/\1xxxxxx/g')
+    echo "$masked_out" >> "$OUTPUT_FILE"
     if [ -n "$imei" ]; then
         local masked="${imei:0:9}xxxxxx"
         echo "pass|IMEI $masked"
@@ -316,11 +322,20 @@ t_at_cfun() {
     [ -n "$val" ] && echo "pass|$val" || echo "fail|no +CFUN: line"
 }
 t_at_lock_serial() {
-    # Two qcmd calls launched concurrently must serialize correctly.
-    ( _qcmd "AT" ; echo "---" ; _qcmd "AT" ) >> "$OUTPUT_FILE" 2>&1
-    grep -c '^OK' "$OUTPUT_FILE" | grep -q '^[2-9]$' \
-        && echo "pass|two OKs observed" \
-        || echo "fail|did not observe two OKs"
+    # Two qcmd calls launched concurrently — qcmd's flock on
+    # /tmp/qmanager_at.lock must serialize them. Both must complete with OK.
+    ( _qcmd "AT" >> "$OUTPUT_FILE" 2>&1 ) &
+    local pid1=$!
+    ( _qcmd "AT" >> "$OUTPUT_FILE" 2>&1 ) &
+    local pid2=$!
+    wait "$pid1"; local rc1=$?
+    wait "$pid2"; local rc2=$?
+    local oks; oks=$(grep -c '^OK' "$OUTPUT_FILE" 2>/dev/null || echo 0)
+    if [ "$rc1" -eq 0 ] && [ "$rc2" -eq 0 ] && [ "$oks" -ge 2 ]; then
+        echo "pass|two concurrent calls serialized ($oks OKs)"
+    else
+        echo "fail|rc1=$rc1 rc2=$rc2 oks=$oks"
+    fi
 }
 
 t_sms_recv_listing() {
@@ -377,10 +392,29 @@ t_svc_lighttpd()  { _svc_check lighttpd.service 1; }
 t_svc_tailscaled(){ _svc_check tailscaled.service 0; }
 
 t_net_dns() {
-    local out; out=$(nslookup install.speedtest.net 2>&1)
+    # Bound the test to 5s — nslookup against unreachable DNS can stall 30s+
+    # per nameserver and timeout the CGI response. Prefer getent if available.
+    local out rc
+    if command -v getent >/dev/null 2>&1; then
+        out=$(timeout 5 getent hosts install.speedtest.net 2>&1); rc=$?
+    elif command -v nslookup >/dev/null 2>&1; then
+        out=$(timeout 5 nslookup install.speedtest.net 2>&1); rc=$?
+    else
+        echo "no resolver tool available" >> "$OUTPUT_FILE"
+        echo "fail|no getent or nslookup"; return
+    fi
     echo "$out" >> "$OUTPUT_FILE"
-    if echo "$out" | grep -q 'Address'; then echo "pass|resolved"
-    else echo "fail|no Address line"; fi
+    if [ "$rc" = "124" ]; then
+        echo "fail|DNS timed out (5s)"
+    elif [ "$rc" -ne 0 ]; then
+        echo "fail|resolution failed (rc=$rc)"
+    elif echo "$out" | grep -qE '^[0-9a-fA-F:.]+[[:space:]]+install\.speedtest\.net|Name:[[:space:]]+install\.speedtest\.net'; then
+        echo "pass|resolved"
+    elif echo "$out" | grep -qE 'install\.speedtest\.net'; then
+        echo "pass|resolved"
+    else
+        echo "fail|no answer for install.speedtest.net"
+    fi
 }
 t_net_ping() {
     if ping -c 1 -W 2 1.1.1.1 >>"$OUTPUT_FILE" 2>&1; then echo "pass|1.1.1.1 reachable"
@@ -443,14 +477,19 @@ t_cfg_poller_cache_fresh() {
     else echo "fail|age ${age}s (poller may be stalled)"; fi
 }
 t_cfg_cgi_path_opt() {
+    # PATH must include /opt/bin for CGI scripts (jq, msmtp, etc.). Either
+    # lighttpd.conf sets it, or cgi_base.sh exports it. Verify at least one.
     local conf=/usrdata/qmanager/lighttpd.conf
     [ -f "$conf" ] || conf=/etc/lighttpd/lighttpd.conf
+    local cgi_base=/usr/lib/qmanager/cgi_base.sh
     grep -nE 'PATH|setenv|cgi.assign' "$conf" >> "$OUTPUT_FILE" 2>/dev/null || true
     if grep -qE 'PATH.*\/opt\/bin' "$conf" 2>/dev/null; then
-        echo "pass|PATH includes /opt/bin"
+        echo "pass|PATH includes /opt/bin in lighttpd.conf"
+    elif [ -f "$cgi_base" ] && grep -qE 'PATH=.*\/opt\/bin' "$cgi_base" 2>/dev/null; then
+        echo "via cgi_base.sh fallback" >> "$OUTPUT_FILE"
+        echo "pass|PATH set by cgi_base.sh"
     else
-        # Not having it in lighttpd.conf is OK because cgi_base.sh exports it.
-        echo "pass|set via cgi_base.sh (lighttpd PATH absent is acceptable)"
+        echo "fail|/opt/bin not in lighttpd.conf and not in cgi_base.sh"
     fi
 }
 
