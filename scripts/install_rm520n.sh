@@ -691,6 +691,26 @@ install_backend() {
     addgroup www-data dialout 2>/dev/null || true
     mkdir -p "$CONF_DIR/profiles"
     chown -R www-data:www-data "$CONF_DIR"
+
+    # --- Migrate legacy TTL state file (one-time, non-fatal) -----------------
+    # Old path: /etc/firewall.user.ttl (root-owned, unwritable by www-data CGI)
+    # New path: /etc/qmanager/ttl_state (www-data-owned via CONF_DIR chown above)
+    if [ -f /etc/firewall.user.ttl ] && [ ! -f "$CONF_DIR/ttl_state" ]; then
+        info "Migrating legacy TTL state from /etc/firewall.user.ttl ..."
+        (
+            . "$LIB_DIR/platform.sh" 2>/dev/null
+            . "$LIB_DIR/ttl_state.sh" 2>/dev/null
+            old_ttl=$(grep -o -- '--ttl-set [0-9]*' /etc/firewall.user.ttl 2>/dev/null | awk '{print $2}' | head -n1)
+            old_hl=$(grep -o -- '--hl-set [0-9]*' /etc/firewall.user.ttl 2>/dev/null | awk '{print $2}' | head -n1)
+            [ -z "$old_ttl" ] && old_ttl=0
+            [ -z "$old_hl" ] && old_hl=0
+            ttl_state_write_persisted "$old_ttl" "$old_hl" && \
+                info "Migrated TTL=$old_ttl HL=$old_hl to $TTL_STATE_FILE"
+        ) || true
+        rm -f /etc/firewall.user.ttl || true
+        info "Removed legacy /etc/firewall.user.ttl"
+    fi
+
     mkdir -p "$SESSION_DIR"
     chown www-data:www-data "$SESSION_DIR"
     chmod 700 "$SESSION_DIR"

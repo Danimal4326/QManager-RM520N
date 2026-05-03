@@ -124,7 +124,7 @@ info "Removed QManager TLS certs"
 rmdir "$QMANAGER_ROOT" 2>/dev/null || true
 
 # --- Remove firewall rules ---
-rm -f /etc/firewall.user.ttl /etc/firewall.user.mtu 2>/dev/null || true
+rm -f /etc/firewall.user.ttl /etc/firewall.user.mtu /etc/qmanager/ttl_state 2>/dev/null || true
 # Firewall service was stopped above (runs ExecStop to remove rules).
 # Fallback: manually clean up if the service was already deleted or failed.
 if command -v iptables >/dev/null 2>&1; then
