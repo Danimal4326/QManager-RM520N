@@ -1,0 +1,5 @@
+# QManager: set /dev/smd11 to root:dialout mode 660 on every add event.
+# Numeric prefix "99-" ensures this runs after OEM/vendor data_udev_rules.rules
+# so we override their settings. ACTION=="add" prevents redundant firing on
+# "change" or "remove" events.
+KERNEL=="smd11", ACTION=="add", RUN+="/usr/lib/qmanager/qmanager_smd11_udev.sh"
