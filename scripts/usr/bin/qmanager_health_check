@@ -385,7 +385,10 @@ t_at_lock_serial() {
 }
 
 t_sms_recv_listing() {
-    local out; out=$(sms_tool -j recv 2>>"$OUTPUT_FILE")
+    # On RM520N-GL the AT device is /dev/smd11. Without -d, sms_tool tries
+    # to autodetect and may pick the wrong port. tcsetattr warnings are
+    # harmless on smd devices (per CLAUDE.md), so suppress stderr.
+    local out; out=$(sms_tool -j recv -d /dev/smd11 2>/dev/null)
     echo "$out" >> "$OUTPUT_FILE"
     if echo "$out" | jq -e . >/dev/null 2>&1; then echo "pass|valid JSON"
     else echo "fail|invalid JSON or sms_tool error"; fi
@@ -704,10 +707,36 @@ _cleanup_stale() {
     find /tmp -maxdepth 1 -name 'qmanager_health_check_*' -mmin +60 -exec rm -rf {} + 2>/dev/null || true
 }
 
+# --- Poller coordination ---------------------------------------------------
+# The poller hammers the AT lock 1-2x/sec, which makes per-test qcmd calls
+# perpetually time out. Pause it for the run's duration. The trap below
+# guarantees the poller restarts even if we crash, get killed, or hit Ctrl-C.
+
+_PAUSED_POLLER=0
+
+_pause_poller_if_running() {
+    if systemctl is-active --quiet qmanager-poller 2>/dev/null; then
+        _PAUSED_POLLER=1
+        systemctl stop qmanager-poller 2>/dev/null
+        # Give in-flight qcmd/atcli a moment to release the AT lock.
+        sleep 1
+    fi
+}
+
+_resume_poller_if_paused() {
+    if [ "$_PAUSED_POLLER" = "1" ]; then
+        systemctl start qmanager-poller 2>/dev/null
+        _PAUSED_POLLER=0
+    fi
+}
+
+trap _resume_poller_if_paused EXIT INT TERM
+
 # --- Main ------------------------------------------------------------------
 
 _cleanup_stale
 _init_status
+_pause_poller_if_running
 
 _run_test bin.atcli           binaries     "atcli_smd11 binary present"            t_bin_atcli
 _run_test bin.sms_tool        binaries     "sms_tool binary present"               t_bin_sms_tool
