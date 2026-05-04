@@ -66,6 +66,10 @@ const data = {
           title: "Logs",
           url: "/system-settings/logs",
         },
+        {
+          title: "System Health Check",
+          url: "/system-settings/system-health-check",
+        },
       ],
     },
     {
