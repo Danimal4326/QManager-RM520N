@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2Icon,
@@ -69,12 +69,12 @@ export default function SummaryCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>System Health Check</CardTitle>
+        <CardTitle as="h2">System Health Check</CardTitle>
         <CardDescription>
           Run a full diagnostic of binaries, permissions, AT transport, services, and configuration. Download the bundle to share with support.
         </CardDescription>
         <CardAction>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button onClick={onRun} disabled={isRunning || isStarting}>
               {isRunning || isStarting ? (
                 <>
@@ -97,13 +97,17 @@ export default function SummaryCard({
             {canClear && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={isClearing}>
+                  <Button
+                    variant="outline"
+                    disabled={isClearing}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
                     {isClearing ? (
                       <Loader2Icon className="size-4 animate-spin" />
                     ) : (
                       <Trash2Icon className="size-4" />
                     )}
-                    Clear
+                    {isClearing ? "Clearing…" : "Clear"}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -115,7 +119,10 @@ export default function SummaryCard({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={onClear}>
+                    <AlertDialogAction
+                      onClick={onClear}
+                      className={buttonVariants({ variant: "destructive" })}
+                    >
                       Clear results
                     </AlertDialogAction>
                   </AlertDialogFooter>

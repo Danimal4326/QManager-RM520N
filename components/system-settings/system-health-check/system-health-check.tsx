@@ -2,9 +2,10 @@
 
 import { useMemo } from "react";
 import { motion } from "motion/react";
-import { StethoscopeIcon, ArrowUpIcon } from "lucide-react";
+import { StethoscopeIcon, PlayIcon, Loader2Icon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useSystemHealthCheck } from "@/hooks/use-system-health-check";
 import SummaryCard from "./summary-card";
 import CategoryCard from "./category-card";
@@ -116,7 +117,7 @@ export default function SystemHealthCheck() {
                 <StethoscopeIcon className="size-6 text-muted-foreground" />
               </div>
               <div className="space-y-1.5">
-                <h3 className="text-base font-semibold">Ready to run diagnostics</h3>
+                <h2 className="text-base font-semibold">Ready to run diagnostics</h2>
                 <p className="text-sm text-muted-foreground max-w-md">
                   Probes every QManager subsystem and packages the results into a redacted bundle you can share with support.
                 </p>
@@ -128,10 +129,19 @@ export default function SystemHealthCheck() {
                   </Badge>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                <ArrowUpIcon className="size-3" />
-                Use <span className="font-medium">Run Diagnostics</span> above to begin
-              </p>
+              <Button onClick={start} disabled={isStarting} className="mt-2">
+                {isStarting ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin" />
+                    Starting…
+                  </>
+                ) : (
+                  <>
+                    <PlayIcon className="size-4" />
+                    Run Diagnostics
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         )}
