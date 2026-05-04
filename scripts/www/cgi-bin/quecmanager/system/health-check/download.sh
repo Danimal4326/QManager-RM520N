@@ -1,16 +1,11 @@
 #!/bin/sh
-# NOTE: NOT sourcing cgi_base.sh — it emits Content-Type: application/json
-# and a CORS preflight blank line. We need binary streaming with a custom
-# Content-Type, so we replicate just the auth gate inline.
-
-# Auth: reuse the same require_auth implementation
-. /usr/lib/qmanager/cgi_auth.sh 2>/dev/null
-require_auth >/dev/null 2>&1 || {
-    printf 'Status: 401 Unauthorized\r\n'
-    printf 'Content-Type: application/json\r\n\r\n'
-    printf '{"success":false,"error":"unauthorized"}\n'
-    exit 0
-}
+# Source cgi_base.sh: this auto-enforces auth via require_auth. On auth
+# failure, require_auth emits a JSON 401 (with Content-Type from cgi_headers)
+# and exits — exactly what we want for an unauthorized request. On success,
+# control returns here and we emit our own binary streaming headers below.
+# cgi_base.sh's cgi_headers() helper is NOT auto-called on the success path,
+# so it does not contaminate the gzip response.
+. /usr/lib/qmanager/cgi_base.sh
 
 # Method check
 if [ "$REQUEST_METHOD" != "GET" ]; then
