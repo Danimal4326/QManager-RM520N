@@ -71,6 +71,17 @@ _emit_result_locked() {
     ' "$STATUS_FILE" | _atomic_write
 }
 
+# Return current time as integer milliseconds. Falls back to seconds*1000
+# when `date` lacks %N support (e.g., BusyBox date on minimal Linux images).
+_now_ms() {
+    local n
+    n=$(date +%s%N 2>/dev/null)
+    case "$n" in
+        ''|*N|*'%'*) printf '%s000\n' "$(date +%s)" ;;
+        *)           echo $(( n / 1000000 )) ;;
+    esac
+}
+
 # Run a test function with timing. Args: id category label fn
 # The test function writes raw output to $OUTPUT_FILE and prints
 # "<status>|<detail>" on stdout (status in pass|fail|warn|skip).
@@ -78,9 +89,9 @@ _run_test() {
     local id="$1" category="$2" label="$3" fn="$4"
     OUTPUT_FILE="${TESTS_DIR}/${id}.txt"
     : > "$OUTPUT_FILE"
-    local start; start=$(date +%s%3N)
+    local start; start=$(_now_ms)
     local result; result=$("$fn" 2>>"$OUTPUT_FILE") || result="fail|test runner error (rc=$?)"
-    local end; end=$(date +%s%3N)
+    local end; end=$(_now_ms)
     local dur=$(( end - start ))
     local status="${result%%|*}"
     local detail="${result#*|}"
