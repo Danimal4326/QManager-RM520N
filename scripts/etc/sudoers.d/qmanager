@@ -34,3 +34,6 @@ www-data ALL=(root) NOPASSWD: /usr/bin/qmanager_console_mgr
 
 # OTA updater (download/stage/install/rollback — needs full root for install.sh)
 www-data ALL=(root) NOPASSWD: /usr/bin/qmanager_update
+
+# System Health Check (privileged runner that probes binaries, AT, services, sudoers)
+www-data ALL=(root) NOPASSWD: /usr/bin/qmanager_health_check
