@@ -23,7 +23,7 @@ interface CategoryCardProps {
 
 export default function CategoryCard({ category, tests, fetchOutput }: CategoryCardProps) {
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle>{CATEGORY_LABELS[category]}</CardTitle>
         <CardDescription>{CATEGORY_DESCRIPTIONS[category]}</CardDescription>

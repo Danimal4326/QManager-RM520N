@@ -24,6 +24,7 @@ A Tower Locking quality-of-life upgrade, plus a major install/update/uninstall r
 - **Filesystem-driven uninstall** with proper teardown for the web console and (with `--purge`) Tailscale. Entware (`/opt/`) is intentionally preserved unconditionally — manual removal instructions in `--help`.
 - **Post-install verification.** The updater now verifies VERSION was actually stamped to the target version after install, and runs a 3-attempt `qcmd 'ATI'` check to confirm the AT command stack survived the upgrade.
 - **Self-cleaning install staging.** `/tmp/qmanager_install/` is now removed by the installer itself on success, not just by the OTA worker.
+- **Faster "Stopping QManager services" step.** The installer now batches all qmanager-* and socat-* service stops into single `systemctl stop` calls instead of one per unit, letting systemd shut them down in parallel — noticeably quicker on every install and update. A `TimeoutStopSec=10` cap on the long-running daemons (poller, ping, watchcat, tower-failover, console) also bounds the worst case at 10s instead of systemd's 90s default if a service ever wedges on the AT lock.
 
 ## 📥 Installation
 

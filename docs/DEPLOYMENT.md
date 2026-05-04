@@ -369,7 +369,7 @@ cd qmanager_install && bash install_rm520n.sh
 ```
 
 The installer is idempotent — re-running updates rather than duplicates. It handles:
-- Stopping existing services (filesystem-driven scan of `/lib/systemd/system/qmanager-*.service`)
+- Stopping existing services (filesystem-driven scan of `/lib/systemd/system/qmanager-*.service`, batched into a single `systemctl stop` call so systemd shuts them down in parallel; long-running daemons set `TimeoutStopSec=10` so a wedged service caps the wait at 10s instead of systemd's 90s default)
 - Removing orphaned daemons/units/libs not present in the current source tree (`cleanup_legacy_scripts`)
 - Removing conflicting packages (`socat`, `socat-at-bridge`) even with `--skip-packages`
 - Re-enabling services (UCI-gated services only re-enabled if their `multi-user.target.wants/` symlink existed pre-upgrade)

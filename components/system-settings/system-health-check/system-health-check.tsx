@@ -77,7 +77,7 @@ export default function SystemHealthCheck() {
         {groups.length > 0 && (
           <motion.div
             key={job?.job_id ?? "no-job"}
-            className="grid grid-cols-1 @4xl/main:grid-cols-2 gap-4 items-start"
+            className="grid grid-cols-1 @4xl/main:grid-cols-2 gap-4 items-stretch"
             initial="hidden"
             animate="visible"
             variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
@@ -85,6 +85,7 @@ export default function SystemHealthCheck() {
             {groups.map((g) => (
               <motion.div
                 key={g.category}
+                className="h-full"
                 variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
