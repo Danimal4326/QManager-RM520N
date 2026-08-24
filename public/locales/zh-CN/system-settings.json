@@ -12,5 +12,19 @@
     "clear_dialog_clearing": "正在清除…",
     "toast_cleared": "已清除已知 SIM 卡",
     "toast_clear_failed": "清除已知 SIM 卡失败"
+  },
+  "security": {
+    "title": "安全",
+    "description": "配置会话认证设置。",
+    "session_timeout_label": "会话超时",
+    "unit_minutes": "分钟",
+    "unit_hours": "小时",
+    "unit_days": "天",
+    "never_expire": "永不过期",
+    "min_timeout_error": "最短超时为 1 分钟。",
+    "hint_never": "会话将保持活动状态，直到设备重启或您退出登录。",
+    "hint_timed": "闲置会话自动退出登录前的时长。",
+    "toast_saved": "安全设置已保存。",
+    "toast_save_failed": "保存安全设置失败。"
   }
 }

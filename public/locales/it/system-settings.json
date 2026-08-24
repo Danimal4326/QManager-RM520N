@@ -12,5 +12,19 @@
     "clear_dialog_clearing": "Cancellazione…",
     "toast_cleared": "SIM note cancellate",
     "toast_clear_failed": "Impossibile cancellare le SIM note"
+  },
+  "security": {
+    "title": "Sicurezza",
+    "description": "Configura le impostazioni di autenticazione della sessione.",
+    "session_timeout_label": "Timeout sessione",
+    "unit_minutes": "Minuti",
+    "unit_hours": "Ore",
+    "unit_days": "Giorni",
+    "never_expire": "Non scadere mai",
+    "min_timeout_error": "Il timeout minimo è di 1 minuto.",
+    "hint_never": "Le sessioni resteranno attive finché il dispositivo non si riavvia o non esegui la disconnessione.",
+    "hint_timed": "Tempo prima che una sessione inattiva venga disconnessa automaticamente.",
+    "toast_saved": "Impostazioni di sicurezza salvate.",
+    "toast_save_failed": "Salvataggio delle impostazioni di sicurezza non riuscito."
   }
 }

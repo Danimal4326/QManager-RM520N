@@ -12,5 +12,19 @@
     "clear_dialog_clearing": "正在清除…",
     "toast_cleared": "已清除已知 SIM 卡",
     "toast_clear_failed": "清除已知 SIM 卡失敗"
+  },
+  "security": {
+    "title": "安全性",
+    "description": "設定工作階段驗證選項。",
+    "session_timeout_label": "工作階段逾時",
+    "unit_minutes": "分鐘",
+    "unit_hours": "小時",
+    "unit_days": "天",
+    "never_expire": "永不過期",
+    "min_timeout_error": "最短逾時為 1 分鐘。",
+    "hint_never": "工作階段將保持有效，直到裝置重新開機或您登出。",
+    "hint_timed": "閒置工作階段自動登出前的時間。",
+    "toast_saved": "安全性設定已儲存。",
+    "toast_save_failed": "儲存安全性設定失敗。"
   }
 }

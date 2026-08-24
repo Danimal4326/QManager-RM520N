@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   Card,
@@ -63,6 +64,7 @@ export default function SecurityCard({
   isSaving,
   saveSecuritySettings,
 }: Props) {
+  const { t } = useTranslation("system-settings");
   const { saved, markSaved } = useSaveFlash();
 
   const [neverExpire, setNeverExpire] = useState(false);
@@ -126,19 +128,25 @@ export default function SecurityCard({
     if (ok) {
       markSaved();
       setIsDirty(false);
-      toast.success("Security settings saved.");
+      toast.success(t("security.toast_saved"));
     } else {
-      toast.error("Failed to save security settings.");
+      toast.error(t("security.toast_save_failed"));
     }
-  }, [canSave, neverExpire, parsedValue, unit, saveSecuritySettings, markSaved]);
+  }, [
+    canSave,
+    neverExpire,
+    parsedValue,
+    unit,
+    saveSecuritySettings,
+    markSaved,
+    t,
+  ]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Security</CardTitle>
-        <CardDescription>
-          Configure session authentication settings.
-        </CardDescription>
+        <CardTitle>{t("security.title")}</CardTitle>
+        <CardDescription>{t("security.description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {isLoading ? (
@@ -149,7 +157,7 @@ export default function SecurityCard({
         ) : (
           <Field>
             <FieldLabel htmlFor="session-timeout-value">
-              Session Timeout
+              {t("security.session_timeout_label")}
             </FieldLabel>
             <div className="flex items-center gap-2">
               <Input
@@ -171,14 +179,14 @@ export default function SecurityCard({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="minutes">Minutes</SelectItem>
-                  <SelectItem value="hours">Hours</SelectItem>
-                  <SelectItem value="days">Days</SelectItem>
+                  <SelectItem value="minutes">{t("security.unit_minutes")}</SelectItem>
+                  <SelectItem value="hours">{t("security.unit_hours")}</SelectItem>
+                  <SelectItem value="days">{t("security.unit_days")}</SelectItem>
                 </SelectContent>
               </Select>
               <div className="flex items-center gap-2 ml-auto">
                 <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  Never expire
+                  {t("security.never_expire")}
                 </span>
                 <Switch
                   checked={neverExpire}
@@ -189,13 +197,13 @@ export default function SecurityCard({
             </div>
             {!neverExpire && !valueValid && (
               <p role="alert" className="text-sm text-destructive">
-                Minimum timeout is 1 minute.
+                {t("security.min_timeout_error")}
               </p>
             )}
             <FieldDescription>
               {neverExpire
-                ? "Sessions will remain active until the device reboots or you log out."
-                : "Time before an inactive session is automatically signed out."}
+                ? t("security.hint_never")
+                : t("security.hint_timed")}
             </FieldDescription>
           </Field>
         )}

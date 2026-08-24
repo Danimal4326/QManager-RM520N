@@ -12,5 +12,19 @@
     "clear_dialog_clearing": "Menghapus…",
     "toast_cleared": "SIM yang dikenal telah dihapus",
     "toast_clear_failed": "Gagal menghapus SIM yang dikenal"
+  },
+  "security": {
+    "title": "Keamanan",
+    "description": "Konfigurasikan pengaturan autentikasi sesi.",
+    "session_timeout_label": "Batas Waktu Sesi",
+    "unit_minutes": "Menit",
+    "unit_hours": "Jam",
+    "unit_days": "Hari",
+    "never_expire": "Tidak pernah kedaluwarsa",
+    "min_timeout_error": "Batas waktu minimum adalah 1 menit.",
+    "hint_never": "Sesi akan tetap aktif sampai perangkat dimulai ulang atau Anda keluar.",
+    "hint_timed": "Waktu sebelum sesi yang tidak aktif otomatis keluar.",
+    "toast_saved": "Pengaturan keamanan disimpan.",
+    "toast_save_failed": "Gagal menyimpan pengaturan keamanan."
   }
 }

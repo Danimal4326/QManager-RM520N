@@ -12,5 +12,19 @@
     "clear_dialog_clearing": "Clearing…",
     "toast_cleared": "Known SIMs cleared",
     "toast_clear_failed": "Failed to clear known SIMs"
+  },
+  "security": {
+    "title": "Security",
+    "description": "Configure session authentication settings.",
+    "session_timeout_label": "Session Timeout",
+    "unit_minutes": "Minutes",
+    "unit_hours": "Hours",
+    "unit_days": "Days",
+    "never_expire": "Never expire",
+    "min_timeout_error": "Minimum timeout is 1 minute.",
+    "hint_never": "Sessions will remain active until the device reboots or you log out.",
+    "hint_timed": "Time before an inactive session is automatically signed out.",
+    "toast_saved": "Security settings saved.",
+    "toast_save_failed": "Failed to save security settings."
   }
 }
