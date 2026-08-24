@@ -148,10 +148,16 @@ verify_archive() {
 # for the releases path we derive the sibling checksum URL ourselves. The
 # raw/qmanager-build path (dev/one-step installs) has no such sibling and
 # yields an empty string, which verify_checksum() treats as "unavailable".
+#
+# The owner/repo segment is a wildcard to match validate_url() above: with a
+# custom update repository configured, the tarball comes from that fork and the
+# checksum is its sibling there too. Pinning this to one repo made unattended
+# auto-update abort on every fork install — derive returns "", strict treats
+# "unavailable" as fatal — while leaving the manual path silently unverified.
 derive_checksum_url() {
     local tarball_url="$1"
     case "$tarball_url" in
-        https://github.com/dr-dolomite/QManager-RM520N/releases/download/*/qmanager.tar.gz)
+        https://github.com/*/releases/download/*/qmanager.tar.gz)
             printf '%s' "${tarball_url%/qmanager.tar.gz}/sha256sum.txt"
             ;;
         *)
